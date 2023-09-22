@@ -14,4 +14,4 @@ From: python:3.9
     python3 /app/server.py
 
 %files
-    . /app
+    app /app
