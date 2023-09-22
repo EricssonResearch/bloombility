@@ -44,6 +44,7 @@ print("Local data size:", num_examples)
 # Boot up client
 print("Connecting to flower server...")
 fl.client.start_numpy_client(
-    server_address="flower_server:8080",
+    server_address="127.0.0.1:8080", # This solution is for Singularity since each container is running on host
+    # server_address="flower_server:8080", # This solution is for docker only!
     client=FlowerClient()
 )

@@ -1,4 +1,5 @@
 cifar*
 /__pycache__
+*.sif
 
 
