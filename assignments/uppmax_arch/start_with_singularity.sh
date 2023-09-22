@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Brief: A Script which boots up a federated learning server and N clients
+# Brief: A Script which boots up a federated learning server and N clients using Singularity
 # Author: Victor Hwasser
 # TODO: The proper way to start is by using "singularity instance start .."
 #       but this do not work for some reason, it starts an empty container,
