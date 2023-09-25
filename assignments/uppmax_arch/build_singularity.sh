@@ -7,6 +7,8 @@
 CLIENT_DIR=test_client
 SERVER_DIR=test_server
 
-singularity build $CLIENT_DIR/client.sif $CLIENT_DIR/SingFile.def
-singularity build $SERVER_DIR/server.sif $SERVER_DIR/SingFile.def
+cd $SERVER_DIR
+singularity build server.sif SingFile.def
+cd ../$CLIENT_DIR
+singularity build client.sif SingFile.def
 
