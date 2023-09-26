@@ -28,14 +28,20 @@ class FEMNIST(MNIST):
         )
         self.train = train
 
-        if download:
+        # no files there, user wants to download
+        if download and not self.check_files_exist():
+            print("Downloading...")
+            print("Folders exist:", self.check_folders_exist())
             self.download()
-
-        """        
-        if not self._check_exists():
+        # files already exists, user want to download: do not download
+        elif download and self.check_files_exist():
+            print("Files already exist, processing...")
+        # no download, but files do not exist
+        elif not download and not self.check_files_exist():
             raise RuntimeError(
                 "Dataset not found." + " You can use download=True to download it"
-            ) """
+            )
+
         if self.train:
             data_file = self.training_file
         else:
@@ -54,12 +60,30 @@ class FEMNIST(MNIST):
             target = self.target_transform(target)
         return img, target
 
+    def check_files_exist(self):
+        processed_folder = os.path.join(self.root, self.__class__.__name__, "processed")
+        test_file = "test.pt"
+        train_file = "training.pt"
+        exists = True
+        for file in [test_file, train_file]:
+            cur = os.path.join(processed_folder, file)
+            found = os.path.isfile(cur)
+            if not found:
+                exists = False
+
+        return exists
+
+    def check_folders_exist(self):
+        raw_folder = os.path.join(self.root, self.__class__.__name__, "raw")
+        processed_folder = os.path.join(self.root, self.__class__.__name__, "processed")
+        if os.path.isdir(raw_folder) and os.path.isdir(processed_folder):
+            return True
+        else:
+            return False
+
     def download(self):
         """Download the FEMNIST data if it doesn't exist in processed_folder already."""
         import shutil
-
-        if self._check_exists():
-            return
 
         os.makedirs(self.raw_folder, exist_ok=True)
         os.makedirs(self.processed_folder, exist_ok=True)
@@ -70,6 +94,9 @@ class FEMNIST(MNIST):
                 url, download_root=self.raw_folder, filename=filename, md5=md5
             )
 
+        # new_processed = os.path.join(self.root, self.__class__.__name__, "processed")
+        # print("directory:", new_processed)
+
         # process and save as torch files
         print("Processing...")
         shutil.move(
@@ -78,3 +105,4 @@ class FEMNIST(MNIST):
         shutil.move(
             os.path.join(self.raw_folder, self.test_file), self.processed_folder
         )
+        print("Processing done")
