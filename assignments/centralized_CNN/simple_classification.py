@@ -2,7 +2,7 @@ import torch
 import torchvision
 import torchvision.transforms as transforms
 import torch.nn as nn
-from Networks import ConvNeuralNet, CNNMnist
+from Networks import ConvNeuralNet, CNNCifar
 
 
 CIFAR10_classes = (
@@ -22,8 +22,8 @@ CIFAR10_classes = (
 # Define relevant variables for the ML task
 batch_size = 4
 num_CIFAR_classes = len(CIFAR10_classes)
-learning_rate = 0.01
-num_epochs = 5
+learning_rate = 0.001
+num_epochs = 50
 num_workers = 2
 
 # Device will determine whether to run the training on GPU or CPU.
@@ -101,7 +101,7 @@ def main():
 
     # setting up model
     # model = ConvNeuralNet(num_CIFAR_classes).to(device)
-    model = CNNMnist(num_CIFAR_classes).to(device)
+    model = CNNCifar(num_CIFAR_classes).to(device)
 
     # Setting the loss function
     cost = nn.CrossEntropyLoss()
