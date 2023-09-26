@@ -2,7 +2,7 @@ import torch
 import torchvision
 import torchvision.transforms as transforms
 import torch.nn as nn
-from Networks import ConvNeuralNet
+from Networks import ConvNeuralNet, CNNMnist
 
 
 CIFAR10_classes = (
@@ -100,7 +100,8 @@ def main():
     )
 
     # setting up model
-    model = ConvNeuralNet(num_CIFAR_classes).to(device)
+    # model = ConvNeuralNet(num_CIFAR_classes).to(device)
+    model = CNNMnist(num_CIFAR_classes).to(device)
 
     # Setting the loss function
     cost = nn.CrossEntropyLoss()
