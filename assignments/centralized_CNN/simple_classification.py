@@ -51,6 +51,22 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 """
     trains the model on training dataset
+
+    for each epoch, do the following:
+        present each image from the training dataset to the model and save its output label.
+        With the loss funct, calculate how far off the expected result is from the actual result.
+        Propagate the difference of model weights backwards through the model to improve classification.
+        Repeat this procedure for each image in the training dataset.
+
+    Afterwards, call eval_results to estimate model performance on test set.
+
+    Args:
+        trainloader: the preprocessed training set in a lightweight format
+        testloader: the preprocessed testing set in a lightweight format
+        model: the NN model to be trained
+        optimizer: the optimizer to update the model with 
+        cost: the loss function to calculate the difference between expected and actual result    
+    
 """
 
 
@@ -84,6 +100,16 @@ def training(trainloader, testloader, model, optimizer, cost):
 
 """
     evaluates accuracy of network on train dataset
+
+    compares expected with actual output of the model 
+    when presented with images from previously unseen testing set. 
+    This ensures that the model does not just "know the training data results by heart", 
+    but has actually found and learned patterns in the training data
+
+    Args:
+        testloader: the preprocessed testing set in a lightweight format
+        model: the pretrained(!) NN model to be evaluated
+
 """
 
 
@@ -201,5 +227,6 @@ def main():
     training(trainloader, testloader, model, optimizer, cost)
 
 
+# call main function when running the script
 if __name__ == "__main__":
     main()
