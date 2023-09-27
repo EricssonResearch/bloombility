@@ -86,9 +86,19 @@ def eval_results(trainloader, testloader, model):
 
 def main():
     # set up transform to normalize data
-    transform = transforms.Compose(
-        [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
-    )
+    if which_dataset == "CIFAR10":
+        transform = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+            ]
+        )
+    elif which_dataset == "FEMNIST":
+        transform = transforms.Compose(
+            [transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))]
+        )
+    else:
+        print("Unrecognized dataset")
 
     if which_dataset == "CIFAR10":
         # download CIFAR10 training dataset and apply transform
