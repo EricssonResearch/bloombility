@@ -1,8 +1,20 @@
+__author__ = "tao-shen"
+__license__ = "MIT"
+__repository__ = "https://github.com/tao-shen/FEMNIST_pytorch"
+
 from torchvision.datasets import MNIST, utils
 from PIL import Image
 import os.path
 import os
 import torch
+
+"""
+    A class used to represent the FEMNIST dataset
+
+    Attributes:
+        resources: origin of the zipped dataset to be downloaded 
+
+"""
 
 
 class FEMNIST(MNIST):
@@ -13,12 +25,25 @@ class FEMNIST(MNIST):
     "LEAF: A Benchmark for Federated Settings" https://arxiv.org/abs/1812.01097.
     """
 
+    # origin of the FEMNIST dataset
     resources = [
         (
             "https://raw.githubusercontent.com/tao-shen/FEMNIST_pytorch/master/femnist.tar.gz",
             "59c65cec646fc57fe92d27d83afdf0ed",
         )
     ]
+
+    """Initializer of the FEMNIST class
+
+        Args:
+            train: boolean whether the dataset is supposed to be for training (true) or testing (false) purposes. Default True
+            transform: transformations applied to the dataset. Default None
+            download: Whether files are supposed to be downloaded if not yet present. Default False
+        Returns:
+            FEMNIST object
+        Raises:
+            RunTimeError: If dataset not found but download == False
+    """
 
     def __init__(
         self, root, train=True, transform=None, target_transform=None, download=False
@@ -51,6 +76,15 @@ class FEMNIST(MNIST):
             os.path.join(self.processed_folder, data_file)
         )
 
+    """Get image and target label at given index
+        Args:
+            index: index of image 
+        Returns:
+            img: Image
+            target: target label
+
+    """
+
     def __getitem__(self, index):
         img, target = self.data[index], int(self.targets[index])
         img = Image.fromarray(img.numpy(), mode="F")
@@ -59,6 +93,12 @@ class FEMNIST(MNIST):
         if self.target_transform is not None:
             target = self.target_transform(target)
         return img, target
+
+    """ Checks whether expected files exist
+
+        Returns: 
+            a boolean value that indicates whether all files were found
+    """
 
     def check_files_exist(self):
         processed_folder = os.path.join(self.root, self.__class__.__name__, "processed")
@@ -73,6 +113,12 @@ class FEMNIST(MNIST):
 
         return exists
 
+    """ Checks whether expected folders exist
+
+        Returns: 
+            a boolean value that indicates whether all folders were found
+    """
+
     def check_folders_exist(self):
         raw_folder = os.path.join(self.root, self.__class__.__name__, "raw")
         processed_folder = os.path.join(self.root, self.__class__.__name__, "processed")
@@ -81,8 +127,10 @@ class FEMNIST(MNIST):
         else:
             return False
 
+    """Download the FEMNIST data if it doesn't exist in processed_folder already.
+    """
+
     def download(self):
-        """Download the FEMNIST data if it doesn't exist in processed_folder already."""
         import shutil
 
         os.makedirs(self.raw_folder, exist_ok=True)
