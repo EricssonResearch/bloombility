@@ -1,5 +1,6 @@
 Bootstrap: docker
 From: python:3.9
+IncludeCmd: yes
 
 %post
     apt-get -y update

@@ -21,7 +21,7 @@ then
 	do
 		echo "Starting client$i"
 		# singularity instance start test_client/client.sif fl_client$i --command "./test_client/entrypoint.sh" 
-		singularity run test_client/client.sif &
+		singularity run --cpus 1 test_client/client.sif &
 		let "i+=1"
 	done
 else
