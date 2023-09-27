@@ -5,8 +5,7 @@ import torch.nn as nn
 from Networks import ConvNeuralNet, CNNCifar, CNNFemnist
 from download_femnist import FEMNIST
 
-# ----------------------------------------- constants: TODO: export to yaml file ------------------------------------------
-
+# vvvv ---------- do not change ---------------------------- vvvvv
 CIFAR10_classes = (
     "plane",
     "car",
@@ -20,12 +19,23 @@ CIFAR10_classes = (
     "truck",
 )
 
+num_CIFAR_classes = len(CIFAR10_classes)
+num_FEMNIST_classes = 10
+# ^^^^ --------------do not change ---------------------------- ^^^^
+
+# ----------------------------------------- constants: TODO: export to yaml file ------------------------------------------
+
 # define statics
-which_dataset = "FEMNIST"  # || "CIFAR10"
+available_datasets = {"FEMNIST", "CIFAR10"}
+which_dataset = "FEMNIST"
+
+available_optimizers = {"Adam", "Adagrad", "Adadelta", "RMSProp", "SGD"}
+which_opt = "Adadelta"
+
+available_loss_functs = {}
 
 # Define relevant variables for the ML task
 batch_size = 4
-num_CIFAR_classes = len(CIFAR10_classes)
 learning_rate = 0.001
 num_epochs = 50
 num_workers = 2
@@ -35,6 +45,10 @@ num_workers = 2
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # ----------------------------------------- methods ------------------------------------------------------
+
+"""
+    trains the model on training dataset
+"""
 
 
 def training(trainloader, testloader, model, optimizer, cost):
@@ -62,10 +76,15 @@ def training(trainloader, testloader, model, optimizer, cost):
                     )
                 )
 
-    eval_results(trainloader, testloader, model)
+    eval_results_on_train(trainloader, testloader, model)
 
 
-def eval_results(trainloader, testloader, model):
+"""
+    evaluates accuracy of network on train dataset
+"""
+
+
+def eval_results_on_train(trainloader, testloader, model):
     with torch.no_grad():
         correct = 0
         total = 0
@@ -84,9 +103,16 @@ def eval_results(trainloader, testloader, model):
         )
 
 
+""" 
+    downloads / locally loads chosen dataset, preprocesses it, 
+    defines the chosen model, optimizer and loss, and starts training
+"""
+
+
 def main():
     # set up transform to normalize data
     if which_dataset == "CIFAR10":
+        # has three channels b/c it is RGB -> normalize on three layers
         transform = transforms.Compose(
             [
                 transforms.ToTensor(),
@@ -94,6 +120,7 @@ def main():
             ]
         )
     elif which_dataset == "FEMNIST":
+        # has one channel b/c it is grayscale -> normalize on one layer
         transform = transforms.Compose(
             [transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))]
         )
@@ -137,7 +164,7 @@ def main():
     if which_dataset == "CIFAR10":
         model = CNNCifar(num_CIFAR_classes).to(device)
     elif which_dataset == "FEMNIST":
-        model = CNNFemnist(num_CIFAR_classes).to(device)
+        model = CNNFemnist(num_FEMNIST_classes).to(device)
     else:
         print("did not recognized chosen NN model. Check your constants.")
         quit()
@@ -146,7 +173,18 @@ def main():
     cost = nn.CrossEntropyLoss()
 
     # Setting the optimizer with the model parameters and learning rate
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    if which_opt == "Adam":
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    elif which_opt == "Adagrad":
+        optimizer = torch.optim.Adagrad(model.parameters(), lr=learning_rate)
+    elif which_opt == "Adadelta":
+        optimizer = torch.optim.Adadelta(model.parameters(), lr=learning_rate)
+    elif which_opt == "RMSProp":
+        optimizer = torch.optim.RMSprop(model.parameters(), lr=learning_rate)
+    elif which_opt == "SGD":
+        optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+    else:
+        print("Unrecognized optimizer!")
 
     # start training process
     training(trainloader, testloader, model, optimizer, cost)
