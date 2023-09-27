@@ -67,6 +67,7 @@ class CNNCifar(nn.Module):
         return F.log_softmax(x, dim=1)
 
 
+# model from https://github.com/wenzhu23333/Federated-Learning/blob/master/models/Nets.py
 class CNNFemnist(nn.Module):
     def __init__(self, args):
         super().__init__()
@@ -81,5 +82,4 @@ class CNNFemnist(nn.Module):
         x = self.pool(self.act(self.conv1(x)))
         x = self.pool(self.act(self.conv2(x)))
         x = x.flatten(1)
-        # return self.dense2(self.act(self.dense1(x)))
         return self.out(x)

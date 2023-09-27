@@ -5,6 +5,8 @@ import torch.nn as nn
 from Networks import ConvNeuralNet, CNNCifar, CNNFemnist
 from download_femnist import FEMNIST
 
+# based on tutorial here: https://blog.paperspace.com/writing-cnns-from-scratch-in-pytorch/
+
 # vvvv ---------- do not change ---------------------------- vvvvv
 CIFAR10_classes = (
     "plane",
