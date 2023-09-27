@@ -39,7 +39,7 @@ which_loss = "CrossEntropyLoss"  # select which loss funct you want to use here
 
 # Define relevant variables for the ML task
 batch_size = 4
-learning_rate = 0.001
+learning_rate = 0.01
 num_epochs = 50
 num_workers = 2
 
@@ -79,7 +79,7 @@ def training(trainloader, testloader, model, optimizer, cost):
                     )
                 )
 
-    eval_results_on_train(trainloader, testloader, model)
+    eval_results(testloader, model)
 
 
 """
@@ -87,11 +87,11 @@ def training(trainloader, testloader, model, optimizer, cost):
 """
 
 
-def eval_results_on_train(trainloader, testloader, model):
+def eval_results(testloader, model):
     with torch.no_grad():
         correct = 0
         total = 0
-        for images, labels in trainloader:
+        for images, labels in testloader:
             images = images.to(device)
             labels = labels.to(device)
             outputs = model(images)
@@ -100,7 +100,7 @@ def eval_results_on_train(trainloader, testloader, model):
             correct += (predicted == labels).sum().item()
 
         print(
-            "Accuracy of the network on the {} train images: {} %".format(
+            "Accuracy of the network on the {} test images: {} %".format(
                 50000, 100 * correct / total
             )
         )
