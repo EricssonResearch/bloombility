@@ -2,6 +2,10 @@
 - This directory contains solutions for Federated Learning and Split Learning (tba).
 - These are single node solutions to use for a HPC-architecture.
 
+## REQUIREMENT
+- Singularity
+- A venv environment named "venv" with pip libraries numpy, torch, torchvision installed.
+
 ## Runtime instructions
 # For Singularity
 - Build Singularity images by executing "./build_singularity".

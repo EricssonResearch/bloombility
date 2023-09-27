@@ -1,4 +1,5 @@
 import sys
+import os
 import csv
 
 from collections import OrderedDict
@@ -56,15 +57,25 @@ def load_datasets(num_clients: int):
     return trainloaders, valloaders, testloader
 
 
-def store_dataset(index, train, evaluation):
+def store_dataset(dataset_name, train, evaluation):
     '''
     Stores each split of train and evaluation set to files on disk.
     '''
     n_train = len(train.dataset)
     n_eval = len(evaluation.dataset)
-    print(f'Store train and eval dataset {index} (train:{n_train}, eval:{n_eval}) ...')
-    torch.save(train, f'train_dataset{index}.pth')
-    torch.save(evaluation, f'eval_dataset{index}.pth')
+    print(f'Store train and eval dataset {dataset_name} (train:{n_train}, eval:{n_eval}) ...')
+    # Write train dataset
+    train_filename = f'train_dataset{dataset_name}.pth'
+    if os.path.exists(train_filename):
+        print("Train dataset already exists!")
+    else:
+        torch.save(train, train_filename)
+    # Write eval dataset
+    eval_filename = f'eval_dataset{dataset_name}.pth'
+    if os.path.exists(eval_filename):
+        print("Eval dataset already exists!")
+    else:
+        torch.save(evaluation, eval_filename)
 
 # Check whether the correct number of arguments is supplied and then load dataset
 if len(sys.argv) == 2:
@@ -73,9 +84,14 @@ if len(sys.argv) == 2:
         trainloaders, valloaders, testloader = load_datasets(NUM_CLIENTS)
         # Store all splits
         for i in range(NUM_CLIENTS):
-            store_dataset(i, trainloaders[i], valloaders[i])
+            dataset_name = f'{i}_{NUM_CLIENTS}'
+            store_dataset(dataset_name, trainloaders[i], valloaders[i])
         # Store the test dataset
         print("Store test dataset...")
-        torch.save(testloader, f'test_dataset.pth')
+        if os.path.exists('test_dataset.pth'):
+            print("Test dataset already exists!")
+        else:
+            torch.save(testloader, f'test_dataset.pth')
+
 else:
     raise Exception("Program excepts one argument, the number of clients!")

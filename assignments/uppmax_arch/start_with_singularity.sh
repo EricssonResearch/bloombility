@@ -11,6 +11,11 @@ read n_devices
 
 if [ $n_devices -gt 0 ]
 then
+	# Entering virtual environment
+	source venv/bin/activate
+	# Start data distributer
+	echo "Starting data distributer"
+	python3 data_distributer/data_dist.py $n_devices
 	# Start server from "start_server" script
 	echo "Starting server"
 	# singularity instance start test_server/server.sif fl_server --command "python3 /app/server.py"
@@ -21,7 +26,7 @@ then
 	do
 		echo "Starting client$i"
 		# singularity instance start test_client/client.sif fl_client$i --command "./test_client/entrypoint.sh" 
-		singularity run --cpus 1 test_client/client.sif &
+		singularity exec --cpus 1 test_client/client.sif &
 		let "i+=1"
 	done
 else
