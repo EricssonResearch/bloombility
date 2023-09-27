@@ -27,12 +27,15 @@ num_FEMNIST_classes = 10
 
 # define statics
 available_datasets = {"FEMNIST", "CIFAR10"}
-which_dataset = "FEMNIST"
+which_dataset = "FEMNIST"  # select which dataset you want to use here
 
 available_optimizers = {"Adam", "Adagrad", "Adadelta", "RMSProp", "SGD"}
-which_opt = "Adadelta"
+which_opt = "Adadelta"  # select which optimizer you want to use here
 
-available_loss_functs = {}
+# vv ---- loss functs for classification! --- vv
+available_loss_functs = {"CrossEntropyLoss", "NLLLoss"}
+which_loss = "CrossEntropyLoss"  # select which loss funct you want to use here
+# ^^ ----- loss functs for classification! --- ^^
 
 # Define relevant variables for the ML task
 batch_size = 4
@@ -126,6 +129,7 @@ def main():
         )
     else:
         print("Unrecognized dataset")
+        quit()
 
     if which_dataset == "CIFAR10":
         # download CIFAR10 training dataset and apply transform
@@ -170,7 +174,13 @@ def main():
         quit()
 
     # Setting the loss function
-    cost = nn.CrossEntropyLoss()
+    if which_loss == "CrossEntropyLoss":
+        cost = nn.CrossEntropyLoss()
+    elif which_loss == "NLLLoss":
+        cost = nn.NLLLoss()
+    else:
+        print("Unrecognized loss funct")
+        quit()
 
     # Setting the optimizer with the model parameters and learning rate
     if which_opt == "Adam":
@@ -185,6 +195,7 @@ def main():
         optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
     else:
         print("Unrecognized optimizer!")
+        quit()
 
     # start training process
     training(trainloader, testloader, model, optimizer, cost)
