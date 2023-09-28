@@ -3,18 +3,14 @@ import sys
 import os
 from collections import OrderedDict
 
-import flwr as fl
 import torch
+import flwr as fl
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 
-
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-num_examples = {"testset": 10000, "trainset": 12500}
-
 
 def train(net, trainloader, epochs):
     """Train the network on the training set."""
@@ -71,6 +67,13 @@ class FlowerClient(fl.client.NumPyClient):
         # Load the training dataset for this client
         self.trainloader = torch.load(train_path)
         self.testloader = torch.load(test_path)
+        # Calculate the total number of samples
+        num_trainset = len(self.trainloader) * batch_size
+        num_testset = len(self.testloader) * batch_size
+        self.num_examples = {
+            "testset": num_trainset,
+            "trainset": num_testset
+        }
 
     def get_parameters(self, config=None):
         return [val.cpu().numpy() for _, val in self.net.state_dict().items()]
@@ -84,12 +87,12 @@ class FlowerClient(fl.client.NumPyClient):
     def fit(self, parameters, config):
         self.set_parameters(parameters)
         train(self.net, self.trainloader, epochs=1)
-        return self.get_parameters(config={}), num_examples["trainset"], {}
+        return self.get_parameters(config={}), self.num_examples["trainset"], {}
 
     def evaluate(self, parameters, config):
         self.set_parameters(parameters)
         loss, accuracy = test(self.net, self.testloader)
-        return float(loss), num_examples["testset"], {"accuracy": float(accuracy)}
+        return float(loss), self.num_examples["testset"], {"accuracy": float(accuracy)}
 
 if __name__ == "__main__":
     # Initialize and start a single client
