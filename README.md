@@ -2,7 +2,7 @@
 
 
 <div id=images>
-<img style="float:left" src="https://www.uu.se/images/18.17dda5f1791cdbd287d9b55/1622452923523/uu-logo-red.svg" alt="Uppsala university logo" width="300" height="300"/>
+<img style="float:left; padding-top:50px" src="https://www.uu.se/images/18.17dda5f1791cdbd287d9b55/1622452923523/uu-logo-red.svg" alt="Uppsala university logo" width="300" height="300"/>
 
 <img style="float:left; padding-top:20px; clear: inline-end" src="https://logos-world.net/wp-content/uploads/2020/12/Ericsson-Logo-2009-2018-700x394.png" alt="Ericsson research logo" width="auto" height="200"/>
 
