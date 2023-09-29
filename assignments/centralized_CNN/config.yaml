@@ -1,0 +1,18 @@
+datasets:
+  available: ["FEMNIST", "CIFAR10"]
+  chosen: "FEMNIST"
+
+optimizers:
+  available: ["Adam", "Adagrad", "Adadelta", "RMSProp", "SGD"]
+  chosen: "Adadelta"
+
+classification:
+  loss_functions:
+    available: ["CrossEntropyLoss", "NLLLoss"]
+    chosen: "CrossEntropyLoss"
+
+hyper-params:
+  batch_size: 4
+  learning_rate: 0.01
+  num_epochs: 50
+  num_workers: 2
