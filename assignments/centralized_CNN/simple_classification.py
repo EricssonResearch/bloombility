@@ -1,3 +1,5 @@
+import yaml
+import sys
 import torch
 import torchvision
 import torchvision.transforms as transforms
@@ -25,27 +27,6 @@ num_CIFAR_classes = len(CIFAR10_classes)
 num_FEMNIST_classes = 10
 # ^^^^ --------------do not change ---------------------------- ^^^^
 
-# ----------------------------------------- constants: TODO: export to yaml file ------------------------------------------
-
-# define statics
-available_datasets = {"FEMNIST", "CIFAR10"}
-which_dataset = "FEMNIST"  # select which dataset you want to use here
-
-available_optimizers = {"Adam", "Adagrad", "Adadelta", "RMSProp", "SGD"}
-which_opt = "Adadelta"  # select which optimizer you want to use here
-
-# vv ---- loss functs for classification! --- vv
-available_loss_functs = {"CrossEntropyLoss", "NLLLoss"}
-which_loss = "CrossEntropyLoss"  # select which loss funct you want to use here
-# ^^ ----- loss functs for classification! --- ^^
-
-# Define relevant variables for the ML task
-batch_size = 4
-learning_rate = 0.01
-num_epochs = 50
-num_workers = 2
-
-
 # Device will determine whether to run the training on GPU or CPU.
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -72,7 +53,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 """
 
 
-def training(trainloader, testloader, model, optimizer, cost):
+def training(trainloader, testloader, model, num_epochs, optimizer, cost):
     # this is defined to print how many steps are remaining when training
     total_step = len(trainloader)
 
@@ -134,6 +115,42 @@ def eval_results(testloader, model):
         )
 
 
+
+"""
+    reads the configuration from the YAML file specified
+    returns the config as dictionary object
+
+    Args:
+        config_filepath: path to the YAML file containing the configuration
+
+"""
+
+
+def read_config_file(config_filepath: str):
+    if not (config_filepath.lower().endswith(('.yaml', '.yml'))):
+        print("Please provide a path to a YAML file.")
+        quit()
+    with open(config_filepath, 'r') as config_file:
+        config = yaml.safe_load(config_file)
+    return config
+
+
+"""
+    parses the configuration dictionary and returns actual config values
+
+    Args:
+        config: config as dictionary object
+
+"""
+
+def parse_config(config):
+    return config['datasets']['chosen'],    \
+        config['optimizers']['chosen'],     \
+        config['classification']['loss_functions']['chosen'], \
+        config['hyper-params']
+        
+    
+
 """ 
     downloads / locally loads chosen dataset, preprocesses it, 
     defines the chosen model, optimizer and loss, and starts training
@@ -141,6 +158,11 @@ def eval_results(testloader, model):
 
 
 def main():
+    config_file = sys.argv[1]
+    # config_file = os.path.join(os.getcwd(), 'assignments', 'centralized_CNN', 'config.yaml')
+    config = read_config_file(config_file)
+    which_dataset, which_opt, which_loss, hyper_params = parse_config(config)
+
     # set up transform to normalize data
     if which_dataset == "CIFAR10":
         # has three channels b/c it is RGB -> normalize on three layers
@@ -185,11 +207,11 @@ def main():
 
     # torch applies multithreading, shuffling and batch learning
     trainloader = torch.utils.data.DataLoader(
-        trainset, batch_size=batch_size, shuffle=True, num_workers=num_workers
+        trainset, batch_size=hyper_params['batch_size'], shuffle=True, num_workers=hyper_params['num_workers']
     )
 
     testloader = torch.utils.data.DataLoader(
-        testset, batch_size=batch_size, shuffle=False, num_workers=num_workers
+        testset, batch_size=hyper_params['batch_size'], shuffle=False, num_workers=hyper_params['num_workers']
     )
 
     # setting up model
@@ -212,21 +234,21 @@ def main():
 
     # Setting the optimizer with the model parameters and learning rate
     if which_opt == "Adam":
-        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+        optimizer = torch.optim.Adam(model.parameters(), lr=hyper_params['learning_rate'])
     elif which_opt == "Adagrad":
-        optimizer = torch.optim.Adagrad(model.parameters(), lr=learning_rate)
+        optimizer = torch.optim.Adagrad(model.parameters(), lr=hyper_params['learning_rate'])
     elif which_opt == "Adadelta":
-        optimizer = torch.optim.Adadelta(model.parameters(), lr=learning_rate)
+        optimizer = torch.optim.Adadelta(model.parameters(), lr=hyper_params['learning_rate'])
     elif which_opt == "RMSProp":
-        optimizer = torch.optim.RMSprop(model.parameters(), lr=learning_rate)
+        optimizer = torch.optim.RMSprop(model.parameters(), lr=hyper_params['learning_rate'])
     elif which_opt == "SGD":
-        optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+        optimizer = torch.optim.SGD(model.parameters(), lr=hyper_params['learning_rate'])
     else:
         print("Unrecognized optimizer!")
         quit()
 
     # start training process
-    training(trainloader, testloader, model, optimizer, cost)
+    training(trainloader, testloader, model, hyper_params['num_epochs'], optimizer, cost)
 
 
 # call main function when running the script
