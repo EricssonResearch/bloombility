@@ -26,7 +26,8 @@ then
 	do
 		echo "Starting client$i"
 		# singularity instance start test_client/client.sif fl_client$i --command "./test_client/entrypoint.sh" 
-		singularity exec --cpus 1 test_client/client.sif &
+		singularity run -B datasets/:/datasets test_client/client.sif bash -c "pip3 install torch torchvision && python3 /app/client.py /datasets/train_dataset${i}_${n_devices}.pt /datasets/test_dataset.pt" &
+
 		let "i+=1"
 	done
 else
