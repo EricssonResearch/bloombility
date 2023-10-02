@@ -1,5 +1,6 @@
 import yaml
 import sys
+import os
 import wandb  # for tracking experiments
 import torch
 import torchvision
@@ -30,6 +31,7 @@ num_FEMNIST_classes = 10
 
 # Device will determine whether to run the training on GPU or CPU.
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+default_config = "default_config.yaml"
 
 # ----------------------------------------- methods ------------------------------------------------------
 
@@ -192,7 +194,10 @@ def parse_config(config):
 
 
 def main():
-    config_file = sys.argv[1]
+    if len(sys.argv) > 1:
+        config_file = sys.argv[1]
+    else:
+        config_file = os.path.join(os.path.dirname(__file__), default_config)
     # config_file = os.path.join(os.getcwd(), 'assignments', 'centralized_CNN', 'config.yaml')
     config = read_config_file(config_file)
     which_dataset, which_opt, which_loss, wandb_track, hyper_params = parse_config(

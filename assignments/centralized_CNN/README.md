@@ -45,7 +45,6 @@ hyper-params:
   num_workers: int
 ```
 
-TODO: Provide default config if none is provided by user?
 
 Current working configuration for regression_pytorch.py:
 -   datasets: CaliforniaHousing
