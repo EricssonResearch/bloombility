@@ -144,10 +144,15 @@ def read_config_file(config_filepath: str):
 
 
 def parse_config(config):
+    chosen_task = config["task"]["chosen"]
+    if chosen_task == "regression":
+        chosen_loss = config["loss_functions"]["regression"]["chosen"]
+    else:
+        chosen_loss = config["loss_functions"]["classification"]["chosen"]
     return (
         config["datasets"]["chosen"],
         config["optimizers"]["chosen"],
-        config["classification"]["loss_functions"]["chosen"],
+        chosen_loss,
         config["hyper-params"],
     )
 
