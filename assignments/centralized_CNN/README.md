@@ -27,6 +27,9 @@ classification:
     available: list of string
     chosen: string
 
+wandb_tracking:
+  activated: bool
+
 hyper-params:
   batch_size: int
   learning_rate: float
