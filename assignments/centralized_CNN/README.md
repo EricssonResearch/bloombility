@@ -24,7 +24,7 @@ datasets:
   chosen: string
 
 optimizers:
-  available: 
+  available: list of string
   chosen: string
 
 loss_functions:
