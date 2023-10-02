@@ -1,3 +1,8 @@
 torch
 torchvision
 pyyaml
+tqdm
+pandas
+numpy
+matplotlib
+scikit-learn
