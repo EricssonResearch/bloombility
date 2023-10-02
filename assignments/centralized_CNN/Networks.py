@@ -82,6 +82,7 @@ class CNNFemnist(nn.Module):
         x = x.flatten(1)
         return self.out(x)
 
+
 # model class based on https://machinelearningmastery.com/building-a-regression-model-in-pytorch/
 class RegressionModel(nn.Module):
     def __init__(self):
