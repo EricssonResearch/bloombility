@@ -18,6 +18,9 @@ loss_functions:
     available: ["MSELoss", "MAELoss"]
     chosen: "MSELoss"
 
+wandb_tracking:
+  activated: False
+
 hyper-params:
   batch_size: 10
   learning_rate: 0.001
