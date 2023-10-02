@@ -14,6 +14,11 @@ python3 simple_classification.py '/path/to/yaml/file'
 
 As of now, the script expects the following configuration values:
 ```yaml
+
+task:
+  available: list of string (i.e. classification, regression)
+  chosen: string
+
 datasets:
   available: list of string
   chosen: string
@@ -22,8 +27,11 @@ optimizers:
   available: list of string
   chosen: string
 
-classification:
-  loss_functions:
+loss_functions:
+  classification:
+    available: list of string
+    chosen: string
+  regression:
     available: list of string
     chosen: string
 
@@ -38,3 +46,8 @@ hyper-params:
 ```
 
 TODO: Provide default config if none is provided by user?
+
+Current working configuration for regression_pytorch.py:
+-   datasets: CaliforniaHousing
+-   optimizers: Adam
+-   loss_functions: MSELoss

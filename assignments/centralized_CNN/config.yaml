@@ -1,21 +1,28 @@
+task:
+  available: ["classification", "regression"]
+  chosen: "classification"
+
 datasets:
-  available: ["FEMNIST", "CIFAR10"]
-  chosen: "FEMNIST"
+  available: ["FEMNIST", "CIFAR10", "CaliforniaHousing"]
+  chosen: "CIFAR10"
 
 optimizers:
   available: ["Adam", "Adagrad", "Adadelta", "RMSProp", "SGD"]
-  chosen: "Adadelta"
+  chosen: "Adam"
 
-classification:
-  loss_functions:
+loss_functions:
+  classification:
     available: ["CrossEntropyLoss", "NLLLoss"]
     chosen: "CrossEntropyLoss"
+  regression:
+    available: ["MSELoss", "MAELoss"]
+    chosen: "MSELoss"
 
 wandb_tracking:
   activated: False
 
 hyper-params:
-  batch_size: 4
-  learning_rate: 0.01
+  batch_size: 10
+  learning_rate: 0.001
   num_epochs: 50
   num_workers: 2
