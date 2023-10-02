@@ -1,7 +1,7 @@
 # Document attribution:
 # based on tutorial here: https://machinelearningmastery.com/building-a-regression-model-in-pytorch/
 
-# Current working configuration for regression_pytorch.py:
+# Current working configuration for simple_regression.py:
 #   datasets: CaliforniaHousing
 #   optimizers: Adam
 #   loss_functions: MSELoss
