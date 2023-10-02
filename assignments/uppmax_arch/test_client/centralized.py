@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-from collections import OrderedDict
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -12,17 +10,18 @@ from torchvision.datasets import CIFAR10
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+
 # This function downloads and normalizes a training and dataset
 def load_data():
     """Load CIFAR-10 (training and test set)."""
     transform = transforms.Compose(
-    [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
+        [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
     )
     trainset = CIFAR10(".", train=True, download=True, transform=transform)
     testset = CIFAR10(".", train=False, download=True, transform=transform)
     trainloader = DataLoader(trainset, batch_size=32, shuffle=True)
     testloader = DataLoader(testset, batch_size=32)
-    num_examples = {"trainset" : len(trainset), "testset" : len(testset)}
+    num_examples = {"trainset": len(trainset), "testset": len(testset)}
     return trainloader, testloader, num_examples
 
 
@@ -38,6 +37,7 @@ def train(net, trainloader, epochs):
             loss.backward()
             optimizer.step()
 
+
 def test(net, testloader):
     """Validate the network on the entire test set."""
     criterion = torch.nn.CrossEntropyLoss()
@@ -52,6 +52,7 @@ def test(net, testloader):
             correct += (predicted == labels).sum().item()
     accuracy = correct / total
     return loss, accuracy
+
 
 class Net(nn.Module):
     def __init__(self) -> None:

@@ -12,7 +12,7 @@ import torch
     A class used to represent the FEMNIST dataset
 
     Attributes:
-        resources: origin of the zipped dataset to be downloaded 
+        resources: origin of the zipped dataset to be downloaded
 
 """
 
@@ -78,7 +78,7 @@ class FEMNIST(MNIST):
 
     """Get image and target label at given index
         Args:
-            index: index of image 
+            index: index of image
         Returns:
             img: Image
             target: target label
@@ -96,7 +96,7 @@ class FEMNIST(MNIST):
 
     """ Checks whether expected files exist
 
-        Returns: 
+        Returns:
             a boolean value that indicates whether all files were found
     """
 
@@ -115,7 +115,7 @@ class FEMNIST(MNIST):
 
     """ Checks whether expected folders exist
 
-        Returns: 
+        Returns:
             a boolean value that indicates whether all folders were found
     """
 

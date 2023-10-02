@@ -1,10 +1,12 @@
 import yaml
-import sys, os
+import sys
+import os
+import wandb  # for tracking experiments
 import torch
 import torchvision
 import torchvision.transforms as transforms
 import torch.nn as nn
-from Networks import ConvNeuralNet, CNNCifar, CNNFemnist
+from Networks import CNNCifar, CNNFemnist
 from download_femnist import FEMNIST
 
 # based on tutorial here: https://blog.paperspace.com/writing-cnns-from-scratch-in-pytorch/
@@ -29,7 +31,7 @@ num_FEMNIST_classes = 10
 
 # Device will determine whether to run the training on GPU or CPU.
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-default_config = 'default_config.yaml'
+default_config = "default_config.yaml"
 
 # ----------------------------------------- methods ------------------------------------------------------
 
@@ -48,17 +50,20 @@ default_config = 'default_config.yaml'
         trainloader: the preprocessed training set in a lightweight format
         testloader: the preprocessed testing set in a lightweight format
         model: the NN model to be trained
-        optimizer: the optimizer to update the model with 
-        cost: the loss function to calculate the difference between expected and actual result    
-    
+        optimizer: the optimizer to update the model with
+        cost: the loss function to calculate the difference between expected and actual result
+
 """
 
 
-def training(trainloader, testloader, model, num_epochs, optimizer, cost):
+def training(trainloader, testloader, model, num_epochs, optimizer, cost, wandb_track):
     # this is defined to print how many steps are remaining when training
     total_step = len(trainloader)
 
     for epoch in range(num_epochs):
+        # set to training mode
+        model.train()
+        epoch_loss = 0
         for i, (images, labels) in enumerate(trainloader):
             images = images.to(device)
             labels = labels.to(device)
@@ -66,11 +71,16 @@ def training(trainloader, testloader, model, num_epochs, optimizer, cost):
             # Forward pass
             outputs = model(images)
             loss = cost(outputs, labels)
+            epoch_loss += loss.item()
 
             # Backward and optimize
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+
+            if wandb_track:
+                # log metrics to wandb
+                wandb.log({"step_loss": loss.item()})
 
             if (i + 1) % 400 == 0:
                 print(
@@ -79,15 +89,29 @@ def training(trainloader, testloader, model, num_epochs, optimizer, cost):
                     )
                 )
 
-    eval_results(testloader, model)
+        # set to evaluation mode
+        model.eval()
+        acc_per_epoch = eval_results(testloader, model, epoch)
+
+        if wandb_track:
+            wandb.log(
+                {
+                    "epoch_loss": epoch_loss / len(trainloader),
+                    "epoch_acc": acc_per_epoch,
+                }
+            )
+
+    if wandb_track:
+        # [optional] finish the wandb run, necessary in notebooks
+        wandb.finish()
 
 
 """
     evaluates accuracy of network on train dataset
 
-    compares expected with actual output of the model 
-    when presented with images from previously unseen testing set. 
-    This ensures that the model does not just "know the training data results by heart", 
+    compares expected with actual output of the model
+    when presented with images from previously unseen testing set.
+    This ensures that the model does not just "know the training data results by heart",
     but has actually found and learned patterns in the training data
 
     Args:
@@ -97,7 +121,7 @@ def training(trainloader, testloader, model, num_epochs, optimizer, cost):
 """
 
 
-def eval_results(testloader, model):
+def eval_results(testloader, model, epoch):
     with torch.no_grad():
         correct = 0
         total = 0
@@ -109,12 +133,15 @@ def eval_results(testloader, model):
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
 
+        acc = 100 * correct / total
+
         print(
-            "Accuracy of the network on the {} test images: {} %".format(
-                50000, 100 * correct / total
+            "Accuracy of the network after epoch {} on the {} test images: {} %".format(
+                epoch + 1, 50000, acc
             )
         )
 
+        return acc
 
 
 """
@@ -128,10 +155,10 @@ def eval_results(testloader, model):
 
 
 def read_config_file(config_filepath: str):
-    if not (config_filepath.lower().endswith(('.yaml', '.yml'))):
+    if not (config_filepath.lower().endswith((".yaml", ".yml"))):
         print("Please provide a path to a YAML file.")
         quit()
-    with open(config_filepath, 'r') as config_file:
+    with open(config_filepath, "r") as config_file:
         config = yaml.safe_load(config_file)
     return config
 
@@ -144,16 +171,24 @@ def read_config_file(config_filepath: str):
 
 """
 
-def parse_config(config):
-    return config['datasets']['chosen'],    \
-        config['optimizers']['chosen'],     \
-        config['classification']['loss_functions']['chosen'], \
-        config['hyper-params']
-        
-    
 
-""" 
-    downloads / locally loads chosen dataset, preprocesses it, 
+def parse_config(config):
+    chosen_task = config["task"]["chosen"]
+    if chosen_task == "regression":
+        chosen_loss = config["loss_functions"]["regression"]["chosen"]
+    else:
+        chosen_loss = config["loss_functions"]["classification"]["chosen"]
+    return (
+        config["datasets"]["chosen"],
+        config["optimizers"]["chosen"],
+        chosen_loss,
+        config["wandb_tracking"]["activated"],
+        config["hyper-params"],
+    )
+
+
+"""
+    downloads / locally loads chosen dataset, preprocesses it,
     defines the chosen model, optimizer and loss, and starts training
 """
 
@@ -161,11 +196,28 @@ def parse_config(config):
 def main():
     if len(sys.argv) > 1:
         config_file = sys.argv[1]
-    else: 
+    else:
         config_file = os.path.join(os.path.dirname(__file__), default_config)
     # config_file = os.path.join(os.getcwd(), 'assignments', 'centralized_CNN', 'config.yaml')
     config = read_config_file(config_file)
-    which_dataset, which_opt, which_loss, hyper_params = parse_config(config)
+    which_dataset, which_opt, which_loss, wandb_track, hyper_params = parse_config(
+        config
+    )
+
+    if wandb_track:
+        # start a new wandb run to track this script
+        wandb.init(
+            # set the wandb project where this run will be logged
+            project="bloomnet_visualization",
+            # track hyperparameters and run metadata
+            config={
+                "learning_rate": hyper_params["learning_rate"],
+                "dataset": which_dataset,
+                "optimizer": which_opt,
+                "epochs": hyper_params["num_epochs"],
+                "loss": which_loss,
+            },
+        )
 
     # set up transform to normalize data
     if which_dataset == "CIFAR10":
@@ -211,11 +263,17 @@ def main():
 
     # torch applies multithreading, shuffling and batch learning
     trainloader = torch.utils.data.DataLoader(
-        trainset, batch_size=hyper_params['batch_size'], shuffle=True, num_workers=hyper_params['num_workers']
+        trainset,
+        batch_size=hyper_params["batch_size"],
+        shuffle=True,
+        num_workers=hyper_params["num_workers"],
     )
 
     testloader = torch.utils.data.DataLoader(
-        testset, batch_size=hyper_params['batch_size'], shuffle=False, num_workers=hyper_params['num_workers']
+        testset,
+        batch_size=hyper_params["batch_size"],
+        shuffle=False,
+        num_workers=hyper_params["num_workers"],
     )
 
     # setting up model
@@ -238,21 +296,39 @@ def main():
 
     # Setting the optimizer with the model parameters and learning rate
     if which_opt == "Adam":
-        optimizer = torch.optim.Adam(model.parameters(), lr=hyper_params['learning_rate'])
+        optimizer = torch.optim.Adam(
+            model.parameters(), lr=hyper_params["learning_rate"]
+        )
     elif which_opt == "Adagrad":
-        optimizer = torch.optim.Adagrad(model.parameters(), lr=hyper_params['learning_rate'])
+        optimizer = torch.optim.Adagrad(
+            model.parameters(), lr=hyper_params["learning_rate"]
+        )
     elif which_opt == "Adadelta":
-        optimizer = torch.optim.Adadelta(model.parameters(), lr=hyper_params['learning_rate'])
+        optimizer = torch.optim.Adadelta(
+            model.parameters(), lr=hyper_params["learning_rate"]
+        )
     elif which_opt == "RMSProp":
-        optimizer = torch.optim.RMSprop(model.parameters(), lr=hyper_params['learning_rate'])
+        optimizer = torch.optim.RMSprop(
+            model.parameters(), lr=hyper_params["learning_rate"]
+        )
     elif which_opt == "SGD":
-        optimizer = torch.optim.SGD(model.parameters(), lr=hyper_params['learning_rate'])
+        optimizer = torch.optim.SGD(
+            model.parameters(), lr=hyper_params["learning_rate"]
+        )
     else:
         print("Unrecognized optimizer!")
         quit()
 
     # start training process
-    training(trainloader, testloader, model, hyper_params['num_epochs'], optimizer, cost)
+    training(
+        trainloader,
+        testloader,
+        model,
+        hyper_params["num_epochs"],
+        optimizer,
+        cost,
+        wandb_track,
+    )
 
 
 # call main function when running the script
