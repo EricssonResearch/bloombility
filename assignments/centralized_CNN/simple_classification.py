@@ -4,7 +4,7 @@ import torch
 import torchvision
 import torchvision.transforms as transforms
 import torch.nn as nn
-from Networks import ConvNeuralNet, CNNCifar, CNNFemnist
+from Networks import CNNCifar, CNNFemnist
 from download_femnist import FEMNIST
 
 # based on tutorial here: https://blog.paperspace.com/writing-cnns-from-scratch-in-pytorch/
@@ -47,9 +47,9 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         trainloader: the preprocessed training set in a lightweight format
         testloader: the preprocessed testing set in a lightweight format
         model: the NN model to be trained
-        optimizer: the optimizer to update the model with 
-        cost: the loss function to calculate the difference between expected and actual result    
-    
+        optimizer: the optimizer to update the model with
+        cost: the loss function to calculate the difference between expected and actual result
+
 """
 
 
@@ -84,9 +84,9 @@ def training(trainloader, testloader, model, num_epochs, optimizer, cost):
 """
     evaluates accuracy of network on train dataset
 
-    compares expected with actual output of the model 
-    when presented with images from previously unseen testing set. 
-    This ensures that the model does not just "know the training data results by heart", 
+    compares expected with actual output of the model
+    when presented with images from previously unseen testing set.
+    This ensures that the model does not just "know the training data results by heart",
     but has actually found and learned patterns in the training data
 
     Args:
@@ -115,7 +115,6 @@ def eval_results(testloader, model):
         )
 
 
-
 """
     reads the configuration from the YAML file specified
     returns the config as dictionary object
@@ -127,10 +126,10 @@ def eval_results(testloader, model):
 
 
 def read_config_file(config_filepath: str):
-    if not (config_filepath.lower().endswith(('.yaml', '.yml'))):
+    if not (config_filepath.lower().endswith((".yaml", ".yml"))):
         print("Please provide a path to a YAML file.")
         quit()
-    with open(config_filepath, 'r') as config_file:
+    with open(config_filepath, "r") as config_file:
         config = yaml.safe_load(config_file)
     return config
 
@@ -143,16 +142,18 @@ def read_config_file(config_filepath: str):
 
 """
 
-def parse_config(config):
-    return config['datasets']['chosen'],    \
-        config['optimizers']['chosen'],     \
-        config['classification']['loss_functions']['chosen'], \
-        config['hyper-params']
-        
-    
 
-""" 
-    downloads / locally loads chosen dataset, preprocesses it, 
+def parse_config(config):
+    return (
+        config["datasets"]["chosen"],
+        config["optimizers"]["chosen"],
+        config["classification"]["loss_functions"]["chosen"],
+        config["hyper-params"],
+    )
+
+
+"""
+    downloads / locally loads chosen dataset, preprocesses it,
     defines the chosen model, optimizer and loss, and starts training
 """
 
@@ -207,11 +208,17 @@ def main():
 
     # torch applies multithreading, shuffling and batch learning
     trainloader = torch.utils.data.DataLoader(
-        trainset, batch_size=hyper_params['batch_size'], shuffle=True, num_workers=hyper_params['num_workers']
+        trainset,
+        batch_size=hyper_params["batch_size"],
+        shuffle=True,
+        num_workers=hyper_params["num_workers"],
     )
 
     testloader = torch.utils.data.DataLoader(
-        testset, batch_size=hyper_params['batch_size'], shuffle=False, num_workers=hyper_params['num_workers']
+        testset,
+        batch_size=hyper_params["batch_size"],
+        shuffle=False,
+        num_workers=hyper_params["num_workers"],
     )
 
     # setting up model
@@ -234,21 +241,33 @@ def main():
 
     # Setting the optimizer with the model parameters and learning rate
     if which_opt == "Adam":
-        optimizer = torch.optim.Adam(model.parameters(), lr=hyper_params['learning_rate'])
+        optimizer = torch.optim.Adam(
+            model.parameters(), lr=hyper_params["learning_rate"]
+        )
     elif which_opt == "Adagrad":
-        optimizer = torch.optim.Adagrad(model.parameters(), lr=hyper_params['learning_rate'])
+        optimizer = torch.optim.Adagrad(
+            model.parameters(), lr=hyper_params["learning_rate"]
+        )
     elif which_opt == "Adadelta":
-        optimizer = torch.optim.Adadelta(model.parameters(), lr=hyper_params['learning_rate'])
+        optimizer = torch.optim.Adadelta(
+            model.parameters(), lr=hyper_params["learning_rate"]
+        )
     elif which_opt == "RMSProp":
-        optimizer = torch.optim.RMSprop(model.parameters(), lr=hyper_params['learning_rate'])
+        optimizer = torch.optim.RMSprop(
+            model.parameters(), lr=hyper_params["learning_rate"]
+        )
     elif which_opt == "SGD":
-        optimizer = torch.optim.SGD(model.parameters(), lr=hyper_params['learning_rate'])
+        optimizer = torch.optim.SGD(
+            model.parameters(), lr=hyper_params["learning_rate"]
+        )
     else:
         print("Unrecognized optimizer!")
         quit()
 
     # start training process
-    training(trainloader, testloader, model, hyper_params['num_epochs'], optimizer, cost)
+    training(
+        trainloader, testloader, model, hyper_params["num_epochs"], optimizer, cost
+    )
 
 
 # call main function when running the script

@@ -12,6 +12,7 @@ from collections import OrderedDict
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+
 class FlowerClient(fl.client.NumPyClient):
     # return the model weight as a list of NumPy ndarrays
     def get_parameters(self, config):
@@ -33,6 +34,7 @@ class FlowerClient(fl.client.NumPyClient):
         loss, accuracy = test(net, testloader)
         return float(loss), num_examples["testset"], {"accuracy": float(accuracy)}
 
+
 # Load model and data
 print("Setting up local model...")
 net = Net().to(DEVICE)
@@ -43,7 +45,4 @@ print("Local data size:", num_examples)
 
 # Boot up client
 print("Connecting to flower server...")
-fl.client.start_numpy_client(
-    server_address="flower_server:8080",
-    client=FlowerClient()
-)
+fl.client.start_numpy_client(server_address="flower_server:8080", client=FlowerClient())

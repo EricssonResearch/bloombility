@@ -7,6 +7,7 @@ repos:
     rev: 6.1.0
     hooks:
       - id: flake8
+        args: ["--ignore=E501"]
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.4.0
     hooks:
