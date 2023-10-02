@@ -81,3 +81,19 @@ class CNNFemnist(nn.Module):
         x = self.pool(self.act(self.conv2(x)))
         x = x.flatten(1)
         return self.out(x)
+
+# model class based on https://machinelearningmastery.com/building-a-regression-model-in-pytorch/
+class RegressionModel(nn.Module):
+    def __init__(self):
+        super(RegressionModel, self).__init__()
+        self.fc1 = nn.Linear(8, 24)
+        self.fc2 = nn.Linear(24, 12)
+        self.fc3 = nn.Linear(12, 6)
+        self.fc4 = nn.Linear(6, 1)
+        self.relu = nn.ReLU()
+
+    def forward(self, x):
+        x = self.relu(self.fc1(x))
+        x = self.relu(self.fc2(x))
+        x = self.relu(self.fc3(x))
+        return self.fc4(x)
