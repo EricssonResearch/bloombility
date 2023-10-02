@@ -33,5 +33,3 @@ hyper-params:
   num_epochs: int
   num_workers: int
 ```
-
-TODO: Provide default config if none is provided by user?
