@@ -1,10 +1,10 @@
 task:
   available: ["classification", "regression"]
-  chosen: "regression"
+  chosen: "classification"
 
 datasets:
   available: ["FEMNIST", "CIFAR10", "CaliforniaHousing"]
-  chosen: "CaliforniaHousing"
+  chosen: "CIFAR10"
 
 optimizers:
   available: ["Adam", "Adagrad", "Adadelta", "RMSProp", "SGD"]
