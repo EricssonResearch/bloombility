@@ -62,6 +62,7 @@ def parse_config(config):
         config["hyper-params"],
     )
 
+
 def main():
     config_file = sys.argv[1]
     # config_file = os.path.join(os.getcwd(), 'assignments', 'centralized_CNN', 'config.yaml')
@@ -72,14 +73,15 @@ def main():
     print("Loss: ", _loss)
     print("Hyper-parameters: ", hyper_params)
 
-
     # Read data
     if _dataset == "CaliforniaHousing":
         data = fetch_california_housing()
         X, y = data.data, data.target
 
     # train-test split for model evaluation
-    X_train, X_test, y_train, y_test = train_test_split(X, y, train_size=0.7, shuffle=True)
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, train_size=0.7, shuffle=True
+    )
 
     # Convert to 2D PyTorch tensors
     X_train = torch.tensor(X_train, dtype=torch.float32)
@@ -87,10 +89,8 @@ def main():
     X_test = torch.tensor(X_test, dtype=torch.float32)
     y_test = torch.tensor(y_test, dtype=torch.float32).reshape(-1, 1)
 
-        
     # Create the model
     model = RegressionModel()
-
 
     # loss function and optimizer
     if _loss == "MSELoss":
@@ -99,12 +99,12 @@ def main():
     if _opt == "Adam":
         optimizer = optim.Adam(model.parameters(), hyper_params["learning_rate"])
 
-    n_epochs = hyper_params["num_epochs"]   # number of epochs to run
+    n_epochs = hyper_params["num_epochs"]  # number of epochs to run
     batch_size = hyper_params["batch_size"]  # size of each batch
     batch_start = torch.arange(0, len(X_train), batch_size)
 
     # Hold the best model
-    best_mse = np.inf   # init to infinity
+    best_mse = np.inf  # init to infinity
     best_weights = None
     history = []
 
@@ -114,8 +114,8 @@ def main():
             bar.set_description(f"Epoch {epoch}")
             for start in bar:
                 # take a batch
-                X_batch = X_train[start:start+batch_size]
-                y_batch = y_train[start:start+batch_size]
+                X_batch = X_train[start : start + batch_size]
+                y_batch = y_train[start : start + batch_size]
                 # forward pass
                 y_pred = model.forward(X_batch)
                 loss = loss_fn(y_pred, y_batch)
@@ -148,6 +148,7 @@ def main():
     plt.ylabel("MSE")
     plt.title("Training history")
     plt.show()
+
 
 # call main function when running the script
 if __name__ == "__main__":
