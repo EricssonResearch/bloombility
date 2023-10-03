@@ -18,8 +18,11 @@ loss_functions:
     available: ["MSELoss", "MAELoss"]
     chosen: "MSELoss"
 
-wandb_tracking:
-  activated: False
+wandb:
+  active_tracking: False
+  login_key: <put key here>
+
+
 
 hyper-params:
   batch_size: 10

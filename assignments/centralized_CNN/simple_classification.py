@@ -175,7 +175,8 @@ def parse_config(config):
         config["datasets"]["chosen"],
         config["optimizers"]["chosen"],
         chosen_loss,
-        config["wandb_tracking"]["activated"],
+        config["wandb"]["active_tracking"],
+        config["wandb"]["login_key"],
         config["hyper-params"],
     )
 
@@ -191,14 +192,21 @@ def main():
         config_file = os.path.join(os.path.dirname(__file__), default_config)
     # config_file = os.path.join(os.getcwd(), 'assignments', 'centralized_CNN', 'config.yaml')
     config = read_config_file(config_file)
-    which_dataset, which_opt, which_loss, wandb_track, hyper_params = parse_config(
-        config
-    )
+    (
+        which_dataset,
+        which_opt,
+        which_loss,
+        wandb_track,
+        wandb_key,
+        hyper_params,
+    ) = parse_config(config)
 
     if wandb_track:
+        wandb.login(anonymous="never", key=wandb_key)
         # start a new wandb run to track this script
         wandb.init(
             # set the wandb project where this run will be logged
+            entity="cs_team_b",
             project="bloomnet_visualization",
             # track hyperparameters and run metadata
             config={
