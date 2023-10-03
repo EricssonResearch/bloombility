@@ -20,17 +20,15 @@ from sklearn.datasets import fetch_california_housing
 from Networks import RegressionModel
 
 
-"""
+def read_config_file(config_filepath: str):
+    """
     reads the configuration from the YAML file specified
     returns the config as dictionary object
 
     Args:
         config_filepath: path to the YAML file containing the configuration
 
-"""
-
-
-def read_config_file(config_filepath: str):
+    """
     if not (config_filepath.lower().endswith((".yaml", ".yml"))):
         print("Please provide a path to a YAML file.")
         quit()
@@ -39,16 +37,14 @@ def read_config_file(config_filepath: str):
     return config
 
 
-"""
+def parse_config(config):
+    """
     parses the configuration dictionary and returns actual config values
 
     Args:
         config: config as dictionary object
 
-"""
-
-
-def parse_config(config):
+    """
     chosen_task = config["task"]["chosen"]
     if chosen_task == "regression":
         chosen_loss = config["loss_functions"]["regression"]["chosen"]
@@ -63,6 +59,10 @@ def parse_config(config):
 
 
 def main():
+    """
+    reads config, downloads dataset, preprocesses it,
+    defines the chosen model, optimizer and loss, and starts training
+    """
     config_file = sys.argv[1]
     # config_file = os.path.join(os.getcwd(), 'assignments', 'centralized_CNN', 'config.yaml')
     config = read_config_file(config_file)
