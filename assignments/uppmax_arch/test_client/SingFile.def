@@ -5,14 +5,11 @@ IncludeCmd: yes
 %post
     apt-get -y update
     apt-get -y install python3-pip
-    pip3 install --upgrade pip setuptools
-    pip3 install numpy flwr
 
 %environment
     export PATH="/usr/local/bin:$PATH"
 
 %runscript
-    pip3 install torch torchvision
     python3 /app/client.py
 
 %files

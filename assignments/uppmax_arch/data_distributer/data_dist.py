@@ -54,7 +54,7 @@ def store_dataset(dataset_name, train):
     n_train = len(train.dataset)
     print(f'Store train dataset {dataset_name} (size:{n_train}) ...')
     # Write train dataset
-    train_filename = f'datasets/train_dataset{dataset_name}.pt'
+    train_filename = f'datasets/train_dataset{dataset_name}.pth'
     if os.path.exists(train_filename):
         print("Train dataset already exists!")
     else:
@@ -71,7 +71,7 @@ if len(sys.argv) == 2:
             store_dataset(dataset_name, trainloaders[i])
         # Store the test dataset
         print("Store test dataset...")
-        test_filename = "datasets/test_dataset.pt"
+        test_filename = "datasets/test_dataset.pth"
         if os.path.exists(test_filename):
             print("Test dataset already exists!")
         else:

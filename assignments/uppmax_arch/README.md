@@ -2,15 +2,18 @@
 - This directory contains solutions for Federated Learning and Split Learning (tba).
 - These are single node solutions to use for a HPC-architecture.
 
-## REQUIREMENT
-- Singularity
-- A venv environment named "venv" with pip libraries numpy, torch, torchvision installed.
-
 ## Runtime instructions
-# For Singularity
+
+# For using locally on machine using a conda environment
+Requirements: A conda environment with libraries numpy, torch, torchvision installed.
+INSTRUCTIONS: run the "./start_locally.sh" script, choose the number of clients and lets gooooo!
+NOTE: The splitted datasets are located in the "datasets" folder.
+
+# For Singularity (OUTDATED)
 - Build Singularity images by executing "./build_singularity".
 - Boot up a singularity cluster to perform Federated Learning by executing "./start_with_singularity.sh".
-# For Docker
+
+# For Docker (OUTDATED)
 - Build Docker images by executing (tba, maybe..)
 - Boot up a docker cluster to perform Federated Learning by executing "./start_with_docker.sh".
 - Stop and tear down the running docker containers by executing "./kill_docker_containers.sh"

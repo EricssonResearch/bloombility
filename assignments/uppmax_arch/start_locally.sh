@@ -22,7 +22,7 @@ then
 	while [ $i -le $n_devices ]
 	do
 		echo "Starting client$i"
-		python3 test_client/app/client.py datasets/train_dataset${i}_${n_devices}.pt datasets/test_dataset.pt &
+		python3 test_client/app/client.py datasets/train_dataset${i}_${n_devices}.pth datasets/test_dataset.pth &
 		let "i+=1"
 	done
 else
