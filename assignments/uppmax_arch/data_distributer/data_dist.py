@@ -23,17 +23,28 @@ into a file and make each client know which dataset to use, which can easily
 be achived by making each "client.py" take its index as a execution argument.
 '''
 
-def load_datasets(num_clients: int, batch_size: int):
-    '''
-    For loading the CIFAR-10 dataset 
-    #TODO: Change to actual dataset to use in production.
-    '''
+def load_datasets():
+    """
+    For loading a dataset (right now the CIFAR-10 dataset). 
+    """
     transform = transforms.Compose(
     [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
     )
     trainset = CIFAR10(".", train=True, download=True, transform=transform)
     testset = CIFAR10(".", train=False, download=True, transform=transform)
 
+    return trainset, testset
+
+def split_dataset(trainset, testset, num_clients, batch_size):
+    """
+    Splits the trainset and then puts the trainset and dataset into DataLoaders.
+    
+    Args:
+        trainset: a raw trainset
+        testset: a raw testset
+        num_clients: the number of clients will decide the n of splits of the trainset
+        batch_size: decides the batch size for when creating the DataLoader.
+    """    
     # Split training set into `num_clients` partitions to simulate different local datasets
     partition_size = len(trainset) // num_clients
     lengths = [partition_size] * num_clients
@@ -47,27 +58,31 @@ def load_datasets(num_clients: int, batch_size: int):
     return trainloaders, testloader
 
 
-def store_dataset(dataset_name, train):
-    '''
+def store_dataset(dataset_name, trainset):
+    """
     Stores each split of train dataset to files on disk.
-    '''
-    n_train = len(train.dataset)
+    Args:
+        dataset_name: a string containing the full name of train data-subset
+        trainset: expects a DataLoader containing the trainset
+    """
+    n_train = len(trainset.dataset)
     print(f'Store train dataset {dataset_name} (size:{n_train}) ...')
     # Write train dataset
     train_filename = f'datasets/train_dataset{dataset_name}.pth'
     if os.path.exists(train_filename):
         print("Train dataset already exists!")
     else:
-        torch.save(train, train_filename)
+        torch.save(trainset, train_filename)
 
 # Check whether the correct number of arguments is supplied and then load dataset
 if len(sys.argv) == 2:
-        NUM_CLIENTS = int(sys.argv[1])
+        num_clients = int(sys.argv[1])
         print("Load dataset...")
-        trainloaders, testloader = load_datasets(NUM_CLIENTS, 32)
+        trainsets, testset = load_datasets()
+        trainloaders, testloader = split_dataset(trainsets, testset, num_clients, 32)
         # Store all splits
-        for i in range(NUM_CLIENTS):
-            dataset_name = f'{i+1}_{NUM_CLIENTS}'
+        for i in range(num_clients):
+            dataset_name = f'{i+1}_{num_clients}'
             store_dataset(dataset_name, trainloaders[i])
         # Store the test dataset
         print("Store test dataset...")
