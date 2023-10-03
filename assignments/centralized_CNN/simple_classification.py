@@ -35,7 +35,9 @@ default_config = "default_config.yaml"
 
 # ----------------------------------------- methods ------------------------------------------------------
 
-"""
+
+def training(trainloader, testloader, model, num_epochs, optimizer, cost, wandb_track):
+    """
     trains the model on training dataset
 
     for each epoch, do the following:
@@ -53,10 +55,7 @@ default_config = "default_config.yaml"
         optimizer: the optimizer to update the model with
         cost: the loss function to calculate the difference between expected and actual result
 
-"""
-
-
-def training(trainloader, testloader, model, num_epochs, optimizer, cost, wandb_track):
+    """
     # this is defined to print how many steps are remaining when training
     total_step = len(trainloader)
 
@@ -106,7 +105,8 @@ def training(trainloader, testloader, model, num_epochs, optimizer, cost, wandb_
         wandb.finish()
 
 
-"""
+def eval_results(testloader, model, epoch):
+    """
     evaluates accuracy of network on train dataset
 
     compares expected with actual output of the model
@@ -118,10 +118,7 @@ def training(trainloader, testloader, model, num_epochs, optimizer, cost, wandb_
         testloader: the preprocessed testing set in a lightweight format
         model: the pretrained(!) NN model to be evaluated
 
-"""
-
-
-def eval_results(testloader, model, epoch):
+    """
     with torch.no_grad():
         correct = 0
         total = 0
@@ -144,17 +141,15 @@ def eval_results(testloader, model, epoch):
         return acc
 
 
-"""
+def read_config_file(config_filepath: str):
+    """
     reads the configuration from the YAML file specified
     returns the config as dictionary object
 
     Args:
         config_filepath: path to the YAML file containing the configuration
 
-"""
-
-
-def read_config_file(config_filepath: str):
+    """
     if not (config_filepath.lower().endswith((".yaml", ".yml"))):
         print("Please provide a path to a YAML file.")
         quit()
@@ -163,16 +158,14 @@ def read_config_file(config_filepath: str):
     return config
 
 
-"""
+def parse_config(config):
+    """
     parses the configuration dictionary and returns actual config values
 
     Args:
         config: config as dictionary object
 
-"""
-
-
-def parse_config(config):
+    """
     chosen_task = config["task"]["chosen"]
     if chosen_task == "regression":
         chosen_loss = config["loss_functions"]["regression"]["chosen"]
@@ -187,13 +180,11 @@ def parse_config(config):
     )
 
 
-"""
-    downloads / locally loads chosen dataset, preprocesses it,
-    defines the chosen model, optimizer and loss, and starts training
-"""
-
-
 def main():
+    """
+    reads config, downloads / locally loads chosen dataset, preprocesses it,
+    defines the chosen model, optimizer and loss, and starts training
+    """
     if len(sys.argv) > 1:
         config_file = sys.argv[1]
     else:
