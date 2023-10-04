@@ -1,0 +1,16 @@
+Bootstrap: docker
+From: python:3.9
+IncludeCmd: yes
+
+%post
+    apt-get -y update
+    apt-get -y install python3-pip
+
+%environment
+    export PATH="/usr/local/bin:$PATH"
+
+%runscript
+    python3 /app/client.py
+
+%files
+    app /app
