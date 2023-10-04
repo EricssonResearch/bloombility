@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader, random_split
 from torchvision.datasets import CIFAR10
 
 """
-Program to download the CIFAR-10 dataset, split in into a number och clients and 
+Program to download the CIFAR-10 dataset, split in into a number och clients and
 store all train, test and evaluation datasets seperatly in files.
 
 MOTIVATION AND PURPOSE:
@@ -21,7 +21,7 @@ be achived by making each "client.py" take its index as a execution argument
 
 def load_datasets():
     """
-    For loading a dataset (right now the CIFAR-10 dataset). 
+    For loading a dataset (right now the CIFAR-10 dataset).
     """
     transform = transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
@@ -40,7 +40,7 @@ def split_dataset(trainset, testset, num_clients, batch_size):
         testset: a raw testset
         num_clients: the number of clients will decide the n of splits of the trainset
         batch_size: decides the batch size for when creating the DataLoader.
-    """    
+    """
     # Split training set into `num_clients` partitions to simulate different local datasets
     partition_size = len(trainset) // num_clients
     lengths = [partition_size] * num_clients
@@ -62,11 +62,11 @@ def store_dataset(dataset_name, dataloader):
         dataloader: expects a DataLoader containing a pre-processed dataset
     """
     n_train = len(dataloader.dataset)
-    print(f'Store dataset: {dataset_name} (size:{n_train}) ...')
+    print(f"Store dataset: {dataset_name} (size:{n_train}) ...")
     # Write dataset
-    dataset_filename = f'datasets/{dataset_name}.pth'
+    dataset_filename = f"datasets/{dataset_name}.pth"
     if os.path.exists(dataset_filename):
-        print(f'{dataset_name} already exists!')
+        print(f"{dataset_name} already exists!")
     else:
         torch.save(dataloader, dataset_filename)
 
@@ -81,7 +81,7 @@ if len(sys.argv) == 2:
     testset_name = "test_dataset"
     store_dataset(testset_name, testloader)
     for i in range(num_clients):
-        trainset_name = f'train_dataset{i+1}_{num_clients}'
+        trainset_name = f"train_dataset{i+1}_{num_clients}"
         store_dataset(trainset_name, trainloaders[i])
 else:
     raise Exception("Program expects one argument, the number of clients!")

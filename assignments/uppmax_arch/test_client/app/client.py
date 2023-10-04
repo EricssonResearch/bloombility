@@ -67,10 +67,7 @@ class FlowerClient(fl.client.NumPyClient):
         # Calculate the total number of samples
         num_trainset = len(self.trainloader) * batch_size
         num_testset = len(self.testloader) * batch_size
-        self.num_examples = {
-            "testset": num_trainset,
-            "trainset": num_testset
-        }
+        self.num_examples = {"testset": num_trainset, "trainset": num_testset}
 
     def get_parameters(self, config=None):
         return [val.cpu().numpy() for _, val in self.net.state_dict().items()]
@@ -98,9 +95,8 @@ if __name__ == "__main__":
         test_dataset_path = sys.argv[2]
         client = FlowerClient()
         client.load_dataset(train_dataset_path, test_dataset_path)
-        fl.client.start_numpy_client(
-            server_address="127.0.0.1:8080",
-            client=client
-        )
+        fl.client.start_numpy_client(server_address="127.0.0.1:8080", client=client)
     else:
-        raise Exception("The program expects two arguments: <train dataset file> <test dataset file>")
+        raise Exception(
+            "The program expects two arguments: <train dataset file> <test dataset file>"
+        )
