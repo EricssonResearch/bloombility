@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Brief: A Script which boots up a federated learning server and N clients using Docker
+# Author: Victor Hwasser
+
 echo "How many devices to use for training?"
 read n_devices
 
