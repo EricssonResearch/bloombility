@@ -3,10 +3,13 @@ import torch
 import torchvision
 import torchvision.transforms as transforms
 import torch.nn as nn
-from Networks import CNNCifar, CNNFemnist
-from download_femnist import FEMNIST
+
+from context import models
+from context import load_data
+
 
 # based on tutorial here: https://blog.paperspace.com/writing-cnns-from-scratch-in-pytorch/
+
 
 # vvvv ---------- do not change ---------------------------- vvvvv
 CIFAR10_classes = (
@@ -220,11 +223,11 @@ def main(config):
 
     elif which_dataset == "FEMNIST":
         # download FEMNIST training dataset and apply transform
-        trainset = FEMNIST(
+        trainset = load_data.download_femnist.FEMNIST(
             root="./data", train=True, download=True, transform=transform
         )
         # download FEMNIST testing dataset and apply transform
-        testset = FEMNIST(
+        testset = load_data.download_femnist.FEMNIST(
             root="./data", train=False, download=True, transform=transform
         )
     else:
@@ -248,9 +251,9 @@ def main(config):
 
     # setting up model
     if which_dataset == "CIFAR10":
-        model = CNNCifar(num_CIFAR_classes).to(device)
+        model = models.Networks.CNNCifar(num_CIFAR_classes).to(device)
     elif which_dataset == "FEMNIST":
-        model = CNNFemnist(num_FEMNIST_classes).to(device)
+        model = models.Networks.CNNFemnist(num_FEMNIST_classes).to(device)
     else:
         print("did not recognized chosen NN model. Check your constants.")
         quit()

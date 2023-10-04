@@ -15,7 +15,8 @@ import torch.optim as optim
 import tqdm
 from sklearn.model_selection import train_test_split
 from sklearn.datasets import fetch_california_housing
-from Networks import RegressionModel
+
+from context import models
 
 
 def parse_config(config):
@@ -62,7 +63,7 @@ def main(config):
     y_test = torch.tensor(y_test, dtype=torch.float32).reshape(-1, 1)
 
     # Create the model
-    model = RegressionModel()
+    model = models.Networks.RegressionModel()
 
     # loss function and optimizer
     if _loss == "MSELoss":

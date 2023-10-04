@@ -11,6 +11,8 @@ Run the script as follows:
 python3 simple_classification.py '/path/to/yaml/file'
 ```
 
+Imports of other packages are organized in "context.py"
+
 ### Experiment tracking with wandb
 
 To track experiments using wandb, set the following paramenters in "default_config.yaml":
