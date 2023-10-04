@@ -42,24 +42,6 @@ def read_config_file(config_filepath: str):
     return config
 
 
-def parse_config(config):
-    """
-    parses the configuration dictionary and returns actual config values
-
-    Args:
-        config: config as dictionary object
-
-    """
-    return (
-        config["datasets"]["chosen"],
-        config["optimizers"]["chosen"],
-        config["loss_functions"]["classification"]["chosen"],
-        config["wandb"]["active_tracking"],
-        config["wandb"]["login_key"],
-        config["hyper-params"],
-    )
-
-
 def main():
     args = parse_arguments()
     config = read_config_file(args.config)
