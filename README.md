@@ -1,4 +1,4 @@
-# BloomNet - Federated vs. Split learning performance
+# Bloom - Federated vs. Split learning performance
 
 
 <div id=images>
