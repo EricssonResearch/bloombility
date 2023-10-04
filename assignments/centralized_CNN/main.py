@@ -1,7 +1,7 @@
 import argparse
 import os
-import simple_classification as classification
-import simple_regression as regression
+import classification
+import regression
 
 default_config = os.path.join(os.path.dirname(__file__), "default_config.yaml")
 
