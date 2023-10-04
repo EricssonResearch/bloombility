@@ -33,7 +33,10 @@ class FEMNIST(MNIST):
         )
     ]
 
-    """Initializer of the FEMNIST class
+    def __init__(
+        self, root, train=True, transform=None, target_transform=None, download=False
+    ):
+        """Initializer of the FEMNIST class
 
         Args:
             train: boolean whether the dataset is supposed to be for training (true) or testing (false) purposes. Default True
@@ -43,11 +46,7 @@ class FEMNIST(MNIST):
             FEMNIST object
         Raises:
             RunTimeError: If dataset not found but download == False
-    """
-
-    def __init__(
-        self, root, train=True, transform=None, target_transform=None, download=False
-    ):
+        """
         super(MNIST, self).__init__(
             root, transform=transform, target_transform=target_transform
         )
@@ -76,16 +75,15 @@ class FEMNIST(MNIST):
             os.path.join(self.processed_folder, data_file)
         )
 
-    """Get image and target label at given index
+    def __getitem__(self, index):
+        """Get image and target label at given index
         Args:
             index: index of image
         Returns:
             img: Image
             target: target label
 
-    """
-
-    def __getitem__(self, index):
+        """
         img, target = self.data[index], int(self.targets[index])
         img = Image.fromarray(img.numpy(), mode="F")
         if self.transform is not None:
@@ -94,13 +92,12 @@ class FEMNIST(MNIST):
             target = self.target_transform(target)
         return img, target
 
-    """ Checks whether expected files exist
+    def check_files_exist(self):
+        """Checks whether expected files exist
 
         Returns:
             a boolean value that indicates whether all files were found
-    """
-
-    def check_files_exist(self):
+        """
         processed_folder = os.path.join(self.root, self.__class__.__name__, "processed")
         test_file = "test.pt"
         train_file = "training.pt"
@@ -113,13 +110,12 @@ class FEMNIST(MNIST):
 
         return exists
 
-    """ Checks whether expected folders exist
+    def check_folders_exist(self):
+        """Checks whether expected folders exist
 
         Returns:
             a boolean value that indicates whether all folders were found
-    """
-
-    def check_folders_exist(self):
+        """
         raw_folder = os.path.join(self.root, self.__class__.__name__, "raw")
         processed_folder = os.path.join(self.root, self.__class__.__name__, "processed")
         if os.path.isdir(raw_folder) and os.path.isdir(processed_folder):
@@ -127,10 +123,8 @@ class FEMNIST(MNIST):
         else:
             return False
 
-    """Download the FEMNIST data if it doesn't exist in processed_folder already.
-    """
-
     def download(self):
+        """Download the FEMNIST data if it doesn't exist in processed_folder already."""
         import shutil
 
         os.makedirs(self.raw_folder, exist_ok=True)
