@@ -4,7 +4,7 @@ task:
 
 datasets:
   available: ["FEMNIST", "CIFAR10", "CaliforniaHousing"]
-  chosen: "CIFAR10"
+  chosen: "FEMNIST"
 
 optimizers:
   available: ["Adam", "Adagrad", "Adadelta", "RMSProp", "SGD"]

@@ -6,9 +6,9 @@ import torch
 import torchvision
 import torchvision.transforms as transforms
 import torch.nn as nn
-from download_femnist import FEMNIST
 
 from context import models
+from context import load_data
 
 
 # based on tutorial here: https://blog.paperspace.com/writing-cnns-from-scratch-in-pytorch/
@@ -252,11 +252,11 @@ def main():
 
     elif which_dataset == "FEMNIST":
         # download FEMNIST training dataset and apply transform
-        trainset = FEMNIST(
+        trainset = load_data.download_femnist.FEMNIST(
             root="./data", train=True, download=True, transform=transform
         )
         # download FEMNIST testing dataset and apply transform
-        testset = FEMNIST(
+        testset = load_data.download_femnist.FEMNIST(
             root="./data", train=False, download=True, transform=transform
         )
     else:
