@@ -1,4 +1,3 @@
-import yaml
 import wandb  # for tracking experiments
 import torch
 import torchvision
@@ -31,23 +30,6 @@ num_FEMNIST_classes = 10
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # ----------------------------------------- helper methods ------------------------------------------------------
-
-
-def read_config_file(config_filepath: str):
-    """
-    reads the configuration from the YAML file specified
-    returns the config as dictionary object
-
-    Args:
-        config_filepath: path to the YAML file containing the configuration
-
-    """
-    if not (config_filepath.lower().endswith((".yaml", ".yml"))):
-        print("Please provide a path to a YAML file.")
-        quit()
-    with open(config_filepath, "r") as config_file:
-        config = yaml.safe_load(config_file)
-    return config
 
 
 def parse_config(config):
@@ -176,14 +158,11 @@ def eval_results(testloader, model, epoch):
         return acc
 
 
-def main(config_file):
+def main(config):
     """
     reads config, downloads / locally loads chosen dataset, preprocesses it,
     defines the chosen model, optimizer and loss, and starts training
     """
-
-    # config_file = os.path.join(os.getcwd(), 'assignments', 'centralized_CNN', 'config.yaml')
-    config = read_config_file(config_file)
     (
         which_dataset,
         which_opt,

@@ -7,7 +7,6 @@
 #   loss_functions: MSELoss
 
 import copy
-import yaml
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -17,23 +16,6 @@ import tqdm
 from sklearn.model_selection import train_test_split
 from sklearn.datasets import fetch_california_housing
 from Networks import RegressionModel
-
-
-def read_config_file(config_filepath: str):
-    """
-    reads the configuration from the YAML file specified
-    returns the config as dictionary object
-
-    Args:
-        config_filepath: path to the YAML file containing the configuration
-
-    """
-    if not (config_filepath.lower().endswith((".yaml", ".yml"))):
-        print("Please provide a path to a YAML file.")
-        quit()
-    with open(config_filepath, "r") as config_file:
-        config = yaml.safe_load(config_file)
-    return config
 
 
 def parse_config(config):
@@ -52,13 +34,11 @@ def parse_config(config):
     )
 
 
-def main(config_file):
+def main(config):
     """
     reads config, downloads dataset, preprocesses it,
     defines the chosen model, optimizer and loss, and starts training
     """
-    # config_file = os.path.join(os.getcwd(), 'assignments', 'centralized_CNN', 'config.yaml')
-    config = read_config_file(config_file)
     _dataset, _opt, _loss, hyper_params = parse_config(config)
     print("Dataset: ", _dataset)
     print("Optimizer: ", _opt)
