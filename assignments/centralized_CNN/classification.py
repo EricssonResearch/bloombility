@@ -1,6 +1,4 @@
 import yaml
-import sys
-import os
 import wandb  # for tracking experiments
 import torch
 import torchvision
@@ -31,9 +29,46 @@ num_FEMNIST_classes = 10
 
 # Device will determine whether to run the training on GPU or CPU.
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-default_config = "default_config.yaml"
 
-# ----------------------------------------- methods ------------------------------------------------------
+# ----------------------------------------- helper methods ------------------------------------------------------
+
+
+def read_config_file(config_filepath: str):
+    """
+    reads the configuration from the YAML file specified
+    returns the config as dictionary object
+
+    Args:
+        config_filepath: path to the YAML file containing the configuration
+
+    """
+    if not (config_filepath.lower().endswith((".yaml", ".yml"))):
+        print("Please provide a path to a YAML file.")
+        quit()
+    with open(config_filepath, "r") as config_file:
+        config = yaml.safe_load(config_file)
+    return config
+
+
+def parse_config(config):
+    """
+    parses the configuration dictionary and returns actual config values
+
+    Args:
+        config: config as dictionary object
+
+    """
+    return (
+        config["datasets"]["chosen"],
+        config["optimizers"]["chosen"],
+        config["loss_functions"]["classification"]["chosen"],
+        config["wandb"]["active_tracking"],
+        config["wandb"]["login_key"],
+        config["hyper-params"],
+    )
+
+
+# ----------------------------------------- classification methods ------------------------------------------------------
 
 
 def training(trainloader, testloader, model, num_epochs, optimizer, cost, wandb_track):
@@ -141,55 +176,12 @@ def eval_results(testloader, model, epoch):
         return acc
 
 
-def read_config_file(config_filepath: str):
-    """
-    reads the configuration from the YAML file specified
-    returns the config as dictionary object
-
-    Args:
-        config_filepath: path to the YAML file containing the configuration
-
-    """
-    if not (config_filepath.lower().endswith((".yaml", ".yml"))):
-        print("Please provide a path to a YAML file.")
-        quit()
-    with open(config_filepath, "r") as config_file:
-        config = yaml.safe_load(config_file)
-    return config
-
-
-def parse_config(config):
-    """
-    parses the configuration dictionary and returns actual config values
-
-    Args:
-        config: config as dictionary object
-
-    """
-    chosen_task = config["task"]["chosen"]
-    if chosen_task == "regression":
-        chosen_loss = config["loss_functions"]["regression"]["chosen"]
-    else:
-        chosen_loss = config["loss_functions"]["classification"]["chosen"]
-    return (
-        config["datasets"]["chosen"],
-        config["optimizers"]["chosen"],
-        chosen_loss,
-        config["wandb"]["active_tracking"],
-        config["wandb"]["login_key"],
-        config["hyper-params"],
-    )
-
-
-def main():
+def main(config_file):
     """
     reads config, downloads / locally loads chosen dataset, preprocesses it,
     defines the chosen model, optimizer and loss, and starts training
     """
-    if len(sys.argv) > 1:
-        config_file = sys.argv[1]
-    else:
-        config_file = os.path.join(os.path.dirname(__file__), default_config)
+
     # config_file = os.path.join(os.getcwd(), 'assignments', 'centralized_CNN', 'config.yaml')
     config = read_config_file(config_file)
     (

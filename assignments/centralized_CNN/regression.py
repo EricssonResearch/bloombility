@@ -8,7 +8,6 @@
 
 import copy
 import yaml
-import sys
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -45,25 +44,19 @@ def parse_config(config):
         config: config as dictionary object
 
     """
-    chosen_task = config["task"]["chosen"]
-    if chosen_task == "regression":
-        chosen_loss = config["loss_functions"]["regression"]["chosen"]
-    else:
-        chosen_loss = config["loss_functions"]["classification"]["chosen"]
     return (
         config["datasets"]["chosen"],
         config["optimizers"]["chosen"],
-        chosen_loss,
+        config["loss_functions"]["regression"]["chosen"],
         config["hyper-params"],
     )
 
 
-def main():
+def main(config_file):
     """
     reads config, downloads dataset, preprocesses it,
     defines the chosen model, optimizer and loss, and starts training
     """
-    config_file = sys.argv[1]
     # config_file = os.path.join(os.getcwd(), 'assignments', 'centralized_CNN', 'config.yaml')
     config = read_config_file(config_file)
     _dataset, _opt, _loss, hyper_params = parse_config(config)
