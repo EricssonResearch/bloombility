@@ -19,6 +19,7 @@ into a file and make each client know which dataset to use, which can easily
 be achived by making each "client.py" take its index as a execution argument
 """
 
+
 def load_datasets():
     """
     For loading a dataset (right now the CIFAR-10 dataset).
@@ -31,10 +32,11 @@ def load_datasets():
 
     return trainset, testset
 
+
 def split_dataset(trainset, testset, num_clients, batch_size):
     """
     Splits the trainset and then puts the trainset and dataset into DataLoaders.
-    
+
     Args:
         trainset: a raw trainset
         testset: a raw testset
@@ -69,6 +71,7 @@ def store_dataset(dataset_name, dataloader):
         print(f"{dataset_name} already exists!")
     else:
         torch.save(dataloader, dataset_filename)
+
 
 # Check whether the correct number of arguments is supplied and then load dataset
 if len(sys.argv) == 2:

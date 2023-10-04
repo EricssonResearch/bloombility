@@ -9,6 +9,7 @@ import torch.nn.functional as F
 
 DEVICE = torch.device("cpu")
 
+
 def train(net, trainloader, epochs):
     """Train the network on the training set."""
     criterion = torch.nn.CrossEntropyLoss()
@@ -20,6 +21,7 @@ def train(net, trainloader, epochs):
             loss = criterion(net(images), labels)
             loss.backward()
             optimizer.step()
+
 
 def test(net, testloader):
     """Validate the network on the entire test set."""
@@ -35,6 +37,7 @@ def test(net, testloader):
             correct += (predicted == labels).sum().item()
     accuracy = correct / total
     return loss, accuracy
+
 
 class Net(nn.Module):
     def __init__(self) -> None:
@@ -54,6 +57,7 @@ class Net(nn.Module):
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
         return x
+
 
 class FlowerClient(fl.client.NumPyClient):
     def __init__(self):
@@ -87,6 +91,7 @@ class FlowerClient(fl.client.NumPyClient):
         self.set_parameters(parameters)
         loss, accuracy = test(self.net, self.testloader)
         return float(loss), self.num_examples["testset"], {"accuracy": float(accuracy)}
+
 
 if __name__ == "__main__":
     # Initialize and start a single client

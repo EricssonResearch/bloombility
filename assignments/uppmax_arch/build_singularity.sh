@@ -11,4 +11,3 @@ cd $SERVER_DIR
 singularity build server.sif SingFile.def
 cd ../$CLIENT_DIR
 singularity build client.sif SingFile.def
-
