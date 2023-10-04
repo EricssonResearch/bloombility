@@ -15,7 +15,6 @@ then
 	python3 data_distributer/data_dist.py $n_devices
 	# Start server from "start_server" script
 	echo "Starting server"
-	# singularity instance start test_server/server.sif fl_server --command "python3 /app/server.py"
 	python3 test_server/app/server.py &
 	# Start all devices
 	i=1

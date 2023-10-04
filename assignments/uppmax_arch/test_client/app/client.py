@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
 import sys
-import os
-from collections import OrderedDict
 
+from collections import OrderedDict
 import torch
 import flwr as fl
 import torch.nn as nn
 import torch.nn.functional as F
-import torchvision.transforms as transforms
-from torch.utils.data import DataLoader
 
 DEVICE = torch.device("cpu")
 
