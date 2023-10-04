@@ -93,4 +93,4 @@ if len(sys.argv) == 2:
             torch.save(testloader, test_filename)
 
 else:
-    raise Exception("Program excepts one argument, the number of clients!")
+    raise Exception("Program expects one argument, the number of clients!")

@@ -6,7 +6,7 @@
 
 # For using locally on machine using a conda environment
 Requirements: A conda environment with libraries numpy, torch, torchvision installed.
-INSTRUCTIONS: run the "./start_locally.sh" script, choose the number of clients and lets gooooo!
+INSTRUCTIONS: To deploy on a host machine, run "./start_locally.sh".
 NOTE: The splitted datasets are located in the "datasets" folder.
 
 # For Singularity (OUTDATED)
