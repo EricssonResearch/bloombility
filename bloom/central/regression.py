@@ -7,8 +7,6 @@
 #   loss_functions: MSELoss
 
 import copy
-import yaml
-import sys
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -21,23 +19,6 @@ from sklearn.datasets import fetch_california_housing
 from context import models
 
 
-def read_config_file(config_filepath: str):
-    """
-    reads the configuration from the YAML file specified
-    returns the config as dictionary object
-
-    Args:
-        config_filepath: path to the YAML file containing the configuration
-
-    """
-    if not (config_filepath.lower().endswith((".yaml", ".yml"))):
-        print("Please provide a path to a YAML file.")
-        quit()
-    with open(config_filepath, "r") as config_file:
-        config = yaml.safe_load(config_file)
-    return config
-
-
 def parse_config(config):
     """
     parses the configuration dictionary and returns actual config values
@@ -46,28 +27,24 @@ def parse_config(config):
         config: config as dictionary object
 
     """
-    chosen_task = config["task"]["chosen"]
-    if chosen_task == "regression":
-        chosen_loss = config["loss_functions"]["regression"]["chosen"]
-    else:
-        chosen_loss = config["loss_functions"]["classification"]["chosen"]
     return (
         config["datasets"]["chosen"],
         config["optimizers"]["chosen"],
-        chosen_loss,
+        config["loss_functions"]["regression"]["chosen"],
         config["hyper-params"],
     )
 
 
-def main():
+def main(config):
     """
     reads config, downloads dataset, preprocesses it,
     defines the chosen model, optimizer and loss, and starts training
     """
-    config_file = sys.argv[1]
-    # config_file = os.path.join(os.getcwd(), 'assignments', 'centralized_CNN', 'config.yaml')
-    config = read_config_file(config_file)
-    _dataset, _opt, _loss, hyper_params = parse_config(config)
+    _dataset = config.get_chosen_datasets()
+    _opt = config.get_chosen_optimizers()
+    _loss = config.get_chosen_loss("regression")
+    hyper_params = config.get_hyperparams()
+
     print("Dataset: ", _dataset)
     print("Optimizer: ", _opt)
     print("Loss: ", _loss)
