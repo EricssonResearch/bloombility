@@ -40,7 +40,11 @@ def main(config):
     reads config, downloads dataset, preprocesses it,
     defines the chosen model, optimizer and loss, and starts training
     """
-    _dataset, _opt, _loss, hyper_params = parse_config(config)
+    _dataset = config.get_chosen_datasets()
+    _opt = config.get_chosen_optimizers()
+    _loss = config.get_chosen_loss("regression")
+    hyper_params = config.get_hyperparams()
+
     print("Dataset: ", _dataset)
     print("Optimizer: ", _opt)
     print("Loss: ", _loss)

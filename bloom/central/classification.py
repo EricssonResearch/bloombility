@@ -32,27 +32,6 @@ num_FEMNIST_classes = 10
 # Device will determine whether to run the training on GPU or CPU.
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# ----------------------------------------- helper methods ------------------------------------------------------
-
-
-def parse_config(config):
-    """
-    parses the configuration dictionary and returns actual config values
-
-    Args:
-        config: config as dictionary object
-
-    """
-    return (
-        config["datasets"]["chosen"],
-        config["optimizers"]["chosen"],
-        config["loss_functions"]["classification"]["chosen"],
-        config["wandb"]["active_tracking"],
-        config["wandb"]["login_key"],
-        config["hyper-params"],
-    )
-
-
 # ----------------------------------------- classification methods ------------------------------------------------------
 
 
@@ -166,14 +145,12 @@ def main(config):
     reads config, downloads / locally loads chosen dataset, preprocesses it,
     defines the chosen model, optimizer and loss, and starts training
     """
-    (
-        which_dataset,
-        which_opt,
-        which_loss,
-        wandb_track,
-        wandb_key,
-        hyper_params,
-    ) = parse_config(config)
+    dataset = config.get_chosen_datasets()
+    opt = config.get_chosen_optimizers()
+    loss_fun = config.get_chosen_loss("classification")
+    wandb_track = config.get_wand_active()
+    wandb_key = config.get_wandb_key()
+    hyper_params = config.get_hyperparams()
 
     if wandb_track:
         wandb.login(anonymous="never", key=wandb_key)
@@ -185,15 +162,15 @@ def main(config):
             # track hyperparameters and run metadata
             config={
                 "learning_rate": hyper_params["learning_rate"],
-                "dataset": which_dataset,
-                "optimizer": which_opt,
+                "dataset": dataset,
+                "optimizer": opt,
                 "epochs": hyper_params["num_epochs"],
-                "loss": which_loss,
+                "loss": loss_fun,
             },
         )
 
     # set up transform to normalize data
-    if which_dataset == "CIFAR10":
+    if dataset == "CIFAR10":
         # has three channels b/c it is RGB -> normalize on three layers
         transform = transforms.Compose(
             [
@@ -201,7 +178,7 @@ def main(config):
                 transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
             ]
         )
-    elif which_dataset == "FEMNIST":
+    elif dataset == "FEMNIST":
         # has one channel b/c it is grayscale -> normalize on one layer
         transform = transforms.Compose(
             [transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))]
@@ -210,7 +187,7 @@ def main(config):
         print("Unrecognized dataset")
         quit()
 
-    if which_dataset == "CIFAR10":
+    if dataset == "CIFAR10":
         # download CIFAR10 training dataset and apply transform
         trainset = torchvision.datasets.CIFAR10(
             root="./data", train=True, download=True, transform=transform
@@ -221,7 +198,7 @@ def main(config):
             root="./data", train=False, download=True, transform=transform
         )
 
-    elif which_dataset == "FEMNIST":
+    elif dataset == "FEMNIST":
         # download FEMNIST training dataset and apply transform
         trainset = load_data.download_femnist.FEMNIST(
             root="./data", train=True, download=True, transform=transform
@@ -250,41 +227,41 @@ def main(config):
     )
 
     # setting up model
-    if which_dataset == "CIFAR10":
+    if dataset == "CIFAR10":
         model = models.Networks.CNNCifar(num_CIFAR_classes).to(device)
-    elif which_dataset == "FEMNIST":
+    elif dataset == "FEMNIST":
         model = models.Networks.CNNFemnist(num_FEMNIST_classes).to(device)
     else:
         print("did not recognized chosen NN model. Check your constants.")
         quit()
 
     # Setting the loss function
-    if which_loss == "CrossEntropyLoss":
+    if loss_fun == "CrossEntropyLoss":
         cost = nn.CrossEntropyLoss()
-    elif which_loss == "NLLLoss":
+    elif loss_fun == "NLLLoss":
         cost = nn.NLLLoss()
     else:
         print("Unrecognized loss funct")
         quit()
 
     # Setting the optimizer with the model parameters and learning rate
-    if which_opt == "Adam":
+    if opt == "Adam":
         optimizer = torch.optim.Adam(
             model.parameters(), lr=hyper_params["learning_rate"]
         )
-    elif which_opt == "Adagrad":
+    elif opt == "Adagrad":
         optimizer = torch.optim.Adagrad(
             model.parameters(), lr=hyper_params["learning_rate"]
         )
-    elif which_opt == "Adadelta":
+    elif opt == "Adadelta":
         optimizer = torch.optim.Adadelta(
             model.parameters(), lr=hyper_params["learning_rate"]
         )
-    elif which_opt == "RMSProp":
+    elif opt == "RMSProp":
         optimizer = torch.optim.RMSprop(
             model.parameters(), lr=hyper_params["learning_rate"]
         )
-    elif which_opt == "SGD":
+    elif opt == "SGD":
         optimizer = torch.optim.SGD(
             model.parameters(), lr=hyper_params["learning_rate"]
         )
