@@ -1,4 +1,4 @@
-# Bloom - Federated vs. Split learning performance
+# BloomNet - Federated vs. Split learning performance
 
 <div id=images>
 <img style="float:left; padding-top:50px" src="https://www.uu.se/images/18.17dda5f1791cdbd287d9b55/1622452923523/uu-logo-red.svg" alt="Uppsala university logo" width="300" height="300"/>
