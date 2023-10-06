@@ -24,4 +24,4 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pre-commit"]
+dev = ["pre-commit==3.4.0"]
