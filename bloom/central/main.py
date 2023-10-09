@@ -29,23 +29,6 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def read_config_file(config_filepath: str):
-    """
-    reads the configuration from the YAML file specified
-    returns the config as dictionary object
-
-    Args:
-        config_filepath: path to the YAML file containing the configuration
-
-    """
-    if not (config_filepath.lower().endswith((".yaml", ".yml"))):
-        print("Please provide a path to a YAML file.")
-        quit()
-    with open(config_filepath, "r") as config_file:
-        config = yaml.safe_load(config_file)
-    return config
-
-
 def main():
     args = parse_arguments()
     actual_config = config.Config(args.config)
