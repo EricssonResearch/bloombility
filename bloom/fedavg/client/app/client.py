@@ -7,6 +7,8 @@ import flwr as fl
 import torch.nn as nn
 import torch.nn.functional as F
 
+from context import models
+
 DEVICE = torch.device("cpu")
 
 
@@ -39,29 +41,9 @@ def test(net, testloader):
     return loss, accuracy
 
 
-class Net(nn.Module):
-    def __init__(self) -> None:
-        super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(3, 6, 5)
-        self.pool = nn.MaxPool2d(2, 2)
-        self.conv2 = nn.Conv2d(6, 16, 5)
-        self.fc1 = nn.Linear(16 * 5 * 5, 120)
-        self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, 10)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
-        x = x.view(-1, 16 * 5 * 5)
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x
-
-
 class FlowerClient(fl.client.NumPyClient):
     def __init__(self):
-        self.net = Net().to(DEVICE)
+        self.net = models.FlowerCNN.to(DEVICE)
 
     def load_dataset(self, train_path, test_path):
         batch_size = 32
