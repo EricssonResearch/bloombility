@@ -1,1 +1,1 @@
-from .Networks import ConvNeuralNet, CNNCifar, CNNFemnist, RegressionModel, FlowerCNN
+from .Networks import ConvNeuralNet, CNNCifar, CNNFemnist, RegressionModel, FedAvgCNN

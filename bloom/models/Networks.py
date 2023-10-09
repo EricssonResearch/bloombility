@@ -102,9 +102,9 @@ class RegressionModel(nn.Module):
 
 # Model frpm https://pytorch.org/tutorials/beginner/deep_learning_60min_blitz.html
 # TODO: find better name
-class FlowerCNN(nn.Module):
+class FedAvgCNN(nn.Module):
     def __init__(self) -> None:
-        super(FlowerCNN, self).__init__()
+        super(FedAvgCNN, self).__init__()
         self.conv1 = nn.Conv2d(3, 6, 5)
         self.pool = nn.MaxPool2d(2, 2)
         self.conv2 = nn.Conv2d(6, 16, 5)
