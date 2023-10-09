@@ -152,6 +152,7 @@ def main(config):
     wandb_key = config.get_wandb_key()
     hyper_params = config.get_hyperparams()
 
+    print("Device:", device)
     print("Dataset: ", _dataset)
     print("Optimizer: ", _opt)
     print("Loss: ", _loss)
