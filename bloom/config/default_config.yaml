@@ -4,19 +4,27 @@
 #   chosen: "classification"
 
 datasets:
-  available: ["FEMNIST", "CIFAR10", "CaliforniaHousing"]
-  chosen: "FEMNIST"
+  classification:
+    available: ["FEMNIST", "CIFAR10"]
+    chosen: "FEMNIST"
+  regression:
+    available: ["CaliforniaHousing"]
+    chosen: "CaliforniaHousing"
 
 optimizers:
-  available: ["Adam", "Adagrad", "Adadelta", "RMSProp", "SGD"]
-  chosen: "Adam"
+  classification:
+    available: ["Adam", "Adagrad", "Adadelta", "RMSProp", "SGD"]
+    chosen: "Adam"
+  regression:
+    available: ["Adam"]
+    chosen: "Adam"
 
 loss_functions:
   classification:
     available: ["CrossEntropyLoss", "NLLLoss"]
     chosen: "CrossEntropyLoss"
   regression:
-    available: ["MSELoss", "MAELoss"]
+    available: ["MSELoss"]
     chosen: "MSELoss"
 
 wandb:

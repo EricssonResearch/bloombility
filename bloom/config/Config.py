@@ -24,17 +24,17 @@ class Config:
             config = yaml.safe_load(config_file)
         return config
 
-    def get_available_datasets(self):
-        return self.config["datasets"]["available"]
+    def get_available_datasets(self, task: str):
+        return self.config["datasets"][task]["available"]
 
-    def get_chosen_datasets(self):
-        return self.config["datasets"]["chosen"]
+    def get_chosen_datasets(self, task: str):
+        return self.config["datasets"][task]["chosen"]
 
-    def get_available_optimizers(self):
-        return self.config["optimizers"]["available"]
+    def get_available_optimizers(self, task: str):
+        return self.config["optimizers"][task]["available"]
 
-    def get_chosen_optimizers(self):
-        return self.config["optimizers"]["chosen"]
+    def get_chosen_optimizers(self, task: str):
+        return self.config["optimizers"][task]["chosen"]
 
     def get_available_loss(self, task: str):
         return self.config["loss_functions"][task]["available"]

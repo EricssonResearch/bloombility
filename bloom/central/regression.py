@@ -19,29 +19,13 @@ from sklearn.datasets import fetch_california_housing
 from context import models
 
 
-def parse_config(config):
-    """
-    parses the configuration dictionary and returns actual config values
-
-    Args:
-        config: config as dictionary object
-
-    """
-    return (
-        config["datasets"]["chosen"],
-        config["optimizers"]["chosen"],
-        config["loss_functions"]["regression"]["chosen"],
-        config["hyper-params"],
-    )
-
-
 def main(config):
     """
     reads config, downloads dataset, preprocesses it,
     defines the chosen model, optimizer and loss, and starts training
     """
-    _dataset = config.get_chosen_datasets()
-    _opt = config.get_chosen_optimizers()
+    _dataset = config.get_chosen_datasets("regression")
+    _opt = config.get_chosen_optimizers("regression")
     _loss = config.get_chosen_loss("regression")
     hyper_params = config.get_hyperparams()
 
@@ -72,7 +56,6 @@ def main(config):
     # loss function and optimizer
     if _loss == "MSELoss":
         loss_fn = nn.MSELoss()  # mean square error'
-        print("Loss function: ", loss_fn)
     if _opt == "Adam":
         optimizer = optim.Adam(model.parameters(), hyper_params["learning_rate"])
 
@@ -118,8 +101,14 @@ def main(config):
 
     # restore model and return best accuracy
     model.load_state_dict(best_weights)
-    print("MSE: %.2f" % best_mse)
-    print("RMSE: %.2f" % np.sqrt(best_mse))
+    print()
+    print("Overall MSE: %.2f" % best_mse)
+    print("Overall RMSE: %.2f" % np.sqrt(best_mse))
+
+    plot_performance(history)
+
+
+def plot_performance(history):
     plt.plot(history)
     plt.xlabel("Epoch")
     plt.ylabel("MSE")
