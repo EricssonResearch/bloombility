@@ -4,7 +4,7 @@ import classification
 import regression
 import yaml
 
-from context import config
+from bloom import config
 
 
 def parse_arguments():

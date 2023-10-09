@@ -1,4 +1,4 @@
-from context import config
+from bloom import config
 
 
 def check_chosen_in_available(conf_file):
