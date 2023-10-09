@@ -145,12 +145,18 @@ def main(config):
     reads config, downloads / locally loads chosen dataset, preprocesses it,
     defines the chosen model, optimizer and loss, and starts training
     """
-    dataset = config.get_chosen_datasets()
-    opt = config.get_chosen_optimizers()
-    loss_fun = config.get_chosen_loss("classification")
+    _dataset = config.get_chosen_datasets("classification")
+    _opt = config.get_chosen_optimizers("classification")
+    _loss = config.get_chosen_loss("classification")
     wandb_track = config.get_wand_active()
     wandb_key = config.get_wandb_key()
     hyper_params = config.get_hyperparams()
+
+    print("Device:", device)
+    print("Dataset: ", _dataset)
+    print("Optimizer: ", _opt)
+    print("Loss: ", _loss)
+    print("Hyper-parameters: ", hyper_params)
 
     if wandb_track:
         wandb.login(anonymous="never", key=wandb_key)
@@ -162,15 +168,15 @@ def main(config):
             # track hyperparameters and run metadata
             config={
                 "learning_rate": hyper_params["learning_rate"],
-                "dataset": dataset,
-                "optimizer": opt,
+                "dataset": _dataset,
+                "optimizer": _opt,
                 "epochs": hyper_params["num_epochs"],
-                "loss": loss_fun,
+                "loss": _loss,
             },
         )
 
     # set up transform to normalize data
-    if dataset == "CIFAR10":
+    if _dataset == "CIFAR10":
         # has three channels b/c it is RGB -> normalize on three layers
         transform = transforms.Compose(
             [
@@ -178,7 +184,7 @@ def main(config):
                 transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
             ]
         )
-    elif dataset == "FEMNIST":
+    elif _dataset == "FEMNIST":
         # has one channel b/c it is grayscale -> normalize on one layer
         transform = transforms.Compose(
             [transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))]
@@ -187,7 +193,7 @@ def main(config):
         print("Unrecognized dataset")
         quit()
 
-    if dataset == "CIFAR10":
+    if _dataset == "CIFAR10":
         # download CIFAR10 training dataset and apply transform
         trainset = torchvision.datasets.CIFAR10(
             root="./data", train=True, download=True, transform=transform
@@ -198,7 +204,7 @@ def main(config):
             root="./data", train=False, download=True, transform=transform
         )
 
-    elif dataset == "FEMNIST":
+    elif _dataset == "FEMNIST":
         # download FEMNIST training dataset and apply transform
         trainset = load_data.download_femnist.FEMNIST(
             root="./data", train=True, download=True, transform=transform
@@ -227,41 +233,41 @@ def main(config):
     )
 
     # setting up model
-    if dataset == "CIFAR10":
+    if _dataset == "CIFAR10":
         model = models.Networks.CNNCifar(num_CIFAR_classes).to(device)
-    elif dataset == "FEMNIST":
+    elif _dataset == "FEMNIST":
         model = models.Networks.CNNFemnist(num_FEMNIST_classes).to(device)
     else:
         print("did not recognized chosen NN model. Check your constants.")
         quit()
 
     # Setting the loss function
-    if loss_fun == "CrossEntropyLoss":
+    if _loss == "CrossEntropyLoss":
         cost = nn.CrossEntropyLoss()
-    elif loss_fun == "NLLLoss":
+    elif _loss == "NLLLoss":
         cost = nn.NLLLoss()
     else:
         print("Unrecognized loss funct")
         quit()
 
     # Setting the optimizer with the model parameters and learning rate
-    if opt == "Adam":
+    if _opt == "Adam":
         optimizer = torch.optim.Adam(
             model.parameters(), lr=hyper_params["learning_rate"]
         )
-    elif opt == "Adagrad":
+    elif _opt == "Adagrad":
         optimizer = torch.optim.Adagrad(
             model.parameters(), lr=hyper_params["learning_rate"]
         )
-    elif opt == "Adadelta":
+    elif _opt == "Adadelta":
         optimizer = torch.optim.Adadelta(
             model.parameters(), lr=hyper_params["learning_rate"]
         )
-    elif opt == "RMSProp":
+    elif _opt == "RMSProp":
         optimizer = torch.optim.RMSprop(
             model.parameters(), lr=hyper_params["learning_rate"]
         )
-    elif opt == "SGD":
+    elif _opt == "SGD":
         optimizer = torch.optim.SGD(
             model.parameters(), lr=hyper_params["learning_rate"]
         )

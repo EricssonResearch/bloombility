@@ -6,6 +6,7 @@
 #   optimizers: Adam
 #   loss_functions: MSELoss
 
+import wandb  # for tracking experiments
 import copy
 import matplotlib.pyplot as plt
 import numpy as np
@@ -18,21 +19,8 @@ from sklearn.datasets import fetch_california_housing
 
 from context import models
 
-
-def parse_config(config):
-    """
-    parses the configuration dictionary and returns actual config values
-
-    Args:
-        config: config as dictionary object
-
-    """
-    return (
-        config["datasets"]["chosen"],
-        config["optimizers"]["chosen"],
-        config["loss_functions"]["regression"]["chosen"],
-        config["hyper-params"],
-    )
+# Device will determine whether to run the training on GPU or CPU.
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def main(config):
@@ -40,15 +28,35 @@ def main(config):
     reads config, downloads dataset, preprocesses it,
     defines the chosen model, optimizer and loss, and starts training
     """
-    _dataset = config.get_chosen_datasets()
-    _opt = config.get_chosen_optimizers()
+    _dataset = config.get_chosen_datasets("regression")
+    _opt = config.get_chosen_optimizers("regression")
     _loss = config.get_chosen_loss("regression")
+    wandb_track = config.get_wand_active()
+    wandb_key = config.get_wandb_key()
     hyper_params = config.get_hyperparams()
 
+    print("Device:", device)
     print("Dataset: ", _dataset)
     print("Optimizer: ", _opt)
     print("Loss: ", _loss)
     print("Hyper-parameters: ", hyper_params)
+
+    if wandb_track:
+        wandb.login(anonymous="never", key=wandb_key)
+        # start a new wandb run to track this script
+        wandb.init(
+            # set the wandb project where this run will be logged
+            entity="cs_team_b",
+            project="bloomnet_visualization",
+            # track hyperparameters and run metadata
+            config={
+                "learning_rate": hyper_params["learning_rate"],
+                "dataset": _dataset,
+                "optimizer": _opt,
+                "epochs": hyper_params["num_epochs"],
+                "loss": _loss,
+            },
+        )
 
     # Read data
     if _dataset == "CaliforniaHousing":
@@ -61,18 +69,17 @@ def main(config):
     )
 
     # Convert to 2D PyTorch tensors
-    X_train = torch.tensor(X_train, dtype=torch.float32)
-    y_train = torch.tensor(y_train, dtype=torch.float32).reshape(-1, 1)
-    X_test = torch.tensor(X_test, dtype=torch.float32)
-    y_test = torch.tensor(y_test, dtype=torch.float32).reshape(-1, 1)
+    X_train = torch.tensor(X_train, dtype=torch.float32).to(device)
+    y_train = torch.tensor(y_train, dtype=torch.float32).reshape(-1, 1).to(device)
+    X_test = torch.tensor(X_test, dtype=torch.float32).to(device)
+    y_test = torch.tensor(y_test, dtype=torch.float32).reshape(-1, 1).to(device)
 
     # Create the model
-    model = models.Networks.RegressionModel()
+    model = models.Networks.RegressionModel().to(device)
 
     # loss function and optimizer
     if _loss == "MSELoss":
         loss_fn = nn.MSELoss()  # mean square error'
-        print("Loss function: ", loss_fn)
     if _opt == "Adam":
         optimizer = optim.Adam(model.parameters(), hyper_params["learning_rate"])
 
@@ -91,8 +98,9 @@ def main(config):
             bar.set_description(f"Epoch {epoch}")
             for start in bar:
                 # take a batch
-                X_batch = X_train[start : start + batch_size]
-                y_batch = y_train[start : start + batch_size]
+                X_batch = X_train[start : start + batch_size].to(device)
+                y_batch = y_train[start : start + batch_size].to(device)
+
                 # forward pass
                 y_pred = model.forward(X_batch)
                 loss = loss_fn(y_pred, y_batch)
@@ -103,13 +111,24 @@ def main(config):
                 optimizer.step()
                 # print progress
                 bar.set_postfix(mse=loss.item(), rmse=np.sqrt(loss.item()))
-        # evaluate accuracy at end of each epoch
+
+                if wandb_track:
+                    # log metrics to wandb
+                    wandb.log({"step mse": loss.item()})
+        # evaluate loss at end of each epoch
         with torch.no_grad():
             model.eval()
             y_pred = model.forward(X_test)
             mse = loss_fn(y_pred, y_test)
             # mse = float(mse)
             history.append(mse.item())
+
+            # calc accuracy
+            acc_per_epoch = accuracy(X_test, y_test, model, 0.10)
+
+            if wandb_track:
+                # log metrics to wandb
+                wandb.log({"epoch mse": loss.item(), "epoch accuracy": acc_per_epoch})
 
             # save best model
             if mse < best_mse:
@@ -118,13 +137,46 @@ def main(config):
 
     # restore model and return best accuracy
     model.load_state_dict(best_weights)
-    print("MSE: %.2f" % best_mse)
-    print("RMSE: %.2f" % np.sqrt(best_mse))
-    plt.plot(history)
-    plt.xlabel("Epoch")
-    plt.ylabel("MSE")
-    plt.title("Training history")
-    plt.show()
+    print()
+    print("Overall MSE: %.2f" % best_mse)
+    print("Overall RMSE: %.2f" % np.sqrt(best_mse))
+
+    if wandb_track:
+        # [optional] finish the wandb run, necessary in notebooks
+        wandb.finish()
+
+
+def accuracy(X_test, y_test, model, pct_close):
+    """
+    evaluates accuracy of network on train dataset
+
+    compares expected with actual output of the model
+    when presented with data from previously unseen testing set.
+    The pct_close is an allowed "error range" within which the prediction has to be to be considered correct.
+    This ensures that the model does not just "know the training data results by heart",
+    but has actually found and learned patterns in the training data
+
+    Args:
+        testloader: the preprocessed testing set in a lightweight format
+        model: the pretrained(!) NN model to be evaluated
+
+    """
+    n_correct = 0
+    n_wrong = 0
+
+    with torch.no_grad():
+        for image, label in zip(X_test, y_test):
+            image = image.to(device)
+            label = label.to(device)
+            output = model(image)
+
+            if torch.abs(output - label) < torch.abs(pct_close * label):
+                n_correct += 1
+            else:
+                n_wrong += 1
+
+    acc = (n_correct * 1.0) / (n_correct + n_wrong)
+    return acc
 
 
 # call main function when running the script
