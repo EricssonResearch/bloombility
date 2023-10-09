@@ -1,7 +1,10 @@
+from typing import Any
 from torchvision.datasets import CIFAR10, utils
 import torchvision.transforms as transforms
 import torch
+import pickle
 import os
+import numpy as np
 
 
 class CIFARTEN(CIFAR10):
@@ -42,6 +45,28 @@ class CIFARTEN(CIFAR10):
             raise RuntimeError(
                 "Dataset not found." + " You can use download=True to download it"
             )
+
+        self.data: Any = []
+        self.targets = []
+
+        if self.train:
+            downloaded_list = self.train_list
+        else:
+            downloaded_list = self.test_list
+
+        # now load the picked numpy arrays
+        for file_name, checksum in downloaded_list:
+            file_path = os.path.join(self.root, self.base_folder, file_name)
+            with open(file_path, "rb") as f:
+                entry = pickle.load(f, encoding="latin1")
+                self.data.append(entry["data"])
+                if "labels" in entry:
+                    self.targets.extend(entry["labels"])
+                else:
+                    self.targets.extend(entry["fine_labels"])
+
+        self.data = np.vstack(self.data).reshape(-1, 3, 32, 32)
+        self.data = self.data.transpose((0, 2, 3, 1))  # convert to HWC
 
         return
 
@@ -100,5 +125,6 @@ Example of using this class:
 
 if __name__ == "__main__":
     transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-    trainset, testset = CIFARTEN.get_cifar10_datasets('./data',transform)
+    model = CIFARTEN('./data',train=True , download=True , transform=transform)
+    print(model)
 """
