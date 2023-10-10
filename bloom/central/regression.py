@@ -1,11 +1,6 @@
 # Document attribution:
 # based on tutorial here: https://machinelearningmastery.com/building-a-regression-model-in-pytorch/
 
-# Current working configuration for simple_regression.py:
-#   datasets: CaliforniaHousing
-#   optimizers: Adam
-#   loss_functions: MSELoss
-
 import wandb  # for tracking experiments
 import copy
 import matplotlib.pyplot as plt
@@ -21,6 +16,40 @@ from bloom import models
 
 # Device will determine whether to run the training on GPU or CPU.
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+def preprocess_california(batch_size):
+    """preprocess the california dataset into a torch DataLoader
+
+    split data into train and test,
+    reshape them into tensors and convert them to DataLoaders
+    """
+    data = fetch_california_housing()
+    X, y = data.data, data.target
+
+    # train-test split for model evaluation
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, train_size=0.7, shuffle=True
+    )
+
+    # Convert to 2D PyTorch tensors
+    X_train = torch.tensor(X_train, dtype=torch.float32).to(device)
+    y_train = torch.tensor(y_train, dtype=torch.float32).reshape(-1, 1).to(device)
+    X_test = torch.tensor(X_test, dtype=torch.float32).to(device)
+    y_test = torch.tensor(y_test, dtype=torch.float32).reshape(-1, 1).to(device)
+
+    trainloader = torch.utils.data.DataLoader(
+        [[X_train[i], y_train[i]] for i in range(len(y_train))],
+        shuffle=True,
+        batch_size=batch_size,
+    )
+    testloader = torch.utils.data.DataLoader(
+        [[X_test[i], y_test[i]] for i in range(len(y_test))],
+        shuffle=True,
+        batch_size=batch_size,
+    )
+
+    return trainloader, testloader
 
 
 def main(config):
@@ -60,19 +89,7 @@ def main(config):
 
     # Read data
     if _dataset == "CaliforniaHousing":
-        data = fetch_california_housing()
-        X, y = data.data, data.target
-
-    # train-test split for model evaluation
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, train_size=0.7, shuffle=True
-    )
-
-    # Convert to 2D PyTorch tensors
-    X_train = torch.tensor(X_train, dtype=torch.float32).to(device)
-    y_train = torch.tensor(y_train, dtype=torch.float32).reshape(-1, 1).to(device)
-    X_test = torch.tensor(X_test, dtype=torch.float32).to(device)
-    y_test = torch.tensor(y_test, dtype=torch.float32).reshape(-1, 1).to(device)
+        trainloader, testloader = preprocess_california(hyper_params["batch_size"])
 
     # Create the model
     model = models.Networks.RegressionModel().to(device)
@@ -84,56 +101,63 @@ def main(config):
         optimizer = optim.Adam(model.parameters(), hyper_params["learning_rate"])
 
     n_epochs = hyper_params["num_epochs"]  # number of epochs to run
-    batch_size = hyper_params["batch_size"]  # size of each batch
-    batch_start = torch.arange(0, len(X_train), batch_size)
 
     # Hold the best model
     best_mse = np.inf  # init to infinity
     best_weights = None
-    history = []
+
+    total_step = len(trainloader)
 
     for epoch in range(n_epochs):
         model.train()
-        with tqdm.tqdm(batch_start, unit="batch", mininterval=0, disable=False) as bar:
-            bar.set_description(f"Epoch {epoch}")
-            for start in bar:
-                # take a batch
-                X_batch = X_train[start : start + batch_size].to(device)
-                y_batch = y_train[start : start + batch_size].to(device)
+        epoch_loss = 0
+        for i, (images, labels) in enumerate(trainloader):
+            images = images.to(device)
+            labels = labels.to(device)
 
-                # forward pass
-                y_pred = model.forward(X_batch)
-                loss = loss_fn(y_pred, y_batch)
-                # backward pass
-                optimizer.zero_grad()
-                loss.backward()
-                # update weights
-                optimizer.step()
-                # print progress
-                bar.set_postfix(mse=loss.item(), rmse=np.sqrt(loss.item()))
+            # forward pass
+            y_pred = model.forward(images)
+            loss = loss_fn(y_pred, labels)
+            epoch_loss += loss.item()
 
-                if wandb_track:
-                    # log metrics to wandb
-                    wandb.log({"step mse": loss.item()})
-        # evaluate loss at end of each epoch
-        with torch.no_grad():
-            model.eval()
-            y_pred = model.forward(X_test)
-            mse = loss_fn(y_pred, y_test)
-            # mse = float(mse)
-            history.append(mse.item())
-
-            # calc accuracy
-            acc_per_epoch = accuracy(X_test, y_test, model, 0.10)
+            # backward pass
+            optimizer.zero_grad()
+            loss.backward()
+            # update weights
+            optimizer.step()
 
             if wandb_track:
                 # log metrics to wandb
-                wandb.log({"epoch mse": loss.item(), "epoch accuracy": acc_per_epoch})
+                wandb.log({"step mse": loss.item()})
 
-            # save best model
-            if mse < best_mse:
-                best_mse = mse
-                best_weights = copy.deepcopy(model.state_dict())
+            if (i + 1) % 400 == 0:
+                print(
+                    "Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}".format(
+                        epoch + 1, n_epochs, i + 1, total_step, loss.item()
+                    )
+                )
+
+        # evaluate loss & accuracy at end of each epoch
+        with torch.no_grad():
+            model.eval()
+            acc_per_epoch = regression_accuracy(testloader, model, 0.10)
+
+        print("acc:", acc_per_epoch)
+        print("epoch mse:", epoch_loss / len(testloader))
+        if wandb_track:
+            # log metrics to wandb
+            wandb.log(
+                {
+                    "epoch mse": epoch_loss / len(trainloader),
+                    "epoch accuracy": acc_per_epoch,
+                }
+            )
+
+        mse = epoch_loss / len(testloader)
+        # save best model
+        if mse < best_mse:
+            best_mse = mse
+            best_weights = copy.deepcopy(model.state_dict())
 
     # restore model and return best accuracy
     model.load_state_dict(best_weights)
@@ -146,9 +170,9 @@ def main(config):
         wandb.finish()
 
 
-def accuracy(X_test, y_test, model, pct_close):
+def regression_accuracy(testloader, model, pct_close):
     """
-    evaluates accuracy of network on train dataset
+    evaluates accuracy of network on test dataset
 
     compares expected with actual output of the model
     when presented with data from previously unseen testing set.
@@ -159,21 +183,26 @@ def accuracy(X_test, y_test, model, pct_close):
     Args:
         testloader: the preprocessed testing set in a lightweight format
         model: the pretrained(!) NN model to be evaluated
+        pct_close: percentage how close the prediction needs to be to be considered correct
 
     """
     n_correct = 0
     n_wrong = 0
 
     with torch.no_grad():
-        for image, label in zip(X_test, y_test):
+        # iterate over batches to get outputs per batch
+        for i, (image, label) in enumerate(testloader):
             image = image.to(device)
             label = label.to(device)
             output = model(image)
 
-            if torch.abs(output - label) < torch.abs(pct_close * label):
-                n_correct += 1
-            else:
-                n_wrong += 1
+            # for each prediction and each real label within the batch,
+            # see if they are close enough
+            for out, lab in zip(output, label):
+                if torch.abs(out - lab) < torch.abs(pct_close * lab):
+                    n_correct += 1
+                else:
+                    n_wrong += 1
 
     acc = (n_correct * 1.0) / (n_correct + n_wrong)
     return acc
