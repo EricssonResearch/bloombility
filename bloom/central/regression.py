@@ -17,7 +17,7 @@ import tqdm
 from sklearn.model_selection import train_test_split
 from sklearn.datasets import fetch_california_housing
 
-from context import models
+from bloom import models
 
 # Device will determine whether to run the training on GPU or CPU.
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

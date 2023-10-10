@@ -4,8 +4,8 @@ import torchvision
 import torchvision.transforms as transforms
 import torch.nn as nn
 
-from context import models
-from context import load_data
+from bloom import models
+from bloom import load_data
 
 
 # based on tutorial here: https://blog.paperspace.com/writing-cnns-from-scratch-in-pytorch/
