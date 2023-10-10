@@ -3,7 +3,6 @@
 
 import wandb  # for tracking experiments
 import copy
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
@@ -143,7 +142,7 @@ def main(config):
             acc_per_epoch = regression_accuracy(testloader, model, 0.10)
 
         print("acc:", acc_per_epoch)
-        print("epoch mse:", epoch_loss / len(testloader))
+        print("epoch mse:", epoch_loss / len(trainloader))
         if wandb_track:
             # log metrics to wandb
             wandb.log(
@@ -153,7 +152,7 @@ def main(config):
                 }
             )
 
-        mse = epoch_loss / len(testloader)
+        mse = epoch_loss / len(trainloader)
         # save best model
         if mse < best_mse:
             best_mse = mse
