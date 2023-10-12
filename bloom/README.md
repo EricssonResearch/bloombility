@@ -20,11 +20,10 @@ For split and federated learning, a server-client architecture is launched, and 
 - save and load snapshots of models
 - evaluate the results
 
-
-
-
 ### Requirements <a name="req"></a>
-Requirements can be found in ```requirements.txt``` (for now).
+Requirements can be found in ```pyproject.toml```. To find out how to install the necessary packages, including bloom, read ```CONTRIBUTING.md```.
+(updated 10.10.2023)
 
 ### Running the program <a name="run"></a>
-Add after restructure.
+After following the instructions in ```CONTRIBUTING.md```, navigate to ```\centralized``` and follow the ```README.md``` instructions there.
+(updated 10.10.2023)
