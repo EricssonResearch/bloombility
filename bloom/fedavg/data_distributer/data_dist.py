@@ -30,10 +30,12 @@ def load_datasets():
         [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
     )
 
-    trainset = CIFAR10(".", train=True, download=True, transform=transform)
-    testset = CIFAR10(".", train=False, download=True, transform=transform)
+    # trainset = CIFAR10(".", train=True, download=True, transform=transform)
+    # testset = CIFAR10(".", train=False, download=True, transform=transform)
 
     # trainset , testset = load_data.CIFARTEN.get_cifar10_datasets('.',transform=transform)
+    trainset = CIFARTEN(".", train=True, download=True, transform=transform)
+    testset = CIFARTEN(".", train=False, download=True, transform=transform)
 
     return trainset, testset
 
