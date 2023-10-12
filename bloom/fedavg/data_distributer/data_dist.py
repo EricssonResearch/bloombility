@@ -5,6 +5,8 @@ import torch
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader, random_split
 from torchvision.datasets import CIFAR10
+from bloom import load_data
+from bloom.load_data.download_cifar10 import CIFARTEN
 
 """
 Program to download the CIFAR-10 dataset, split in into a number och clients and
@@ -27,8 +29,11 @@ def load_datasets():
     transform = transforms.Compose(
         [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
     )
+
     trainset = CIFAR10(".", train=True, download=True, transform=transform)
     testset = CIFAR10(".", train=False, download=True, transform=transform)
+
+    # trainset , testset = load_data.CIFARTEN.get_cifar10_datasets('.',transform=transform)
 
     return trainset, testset
 

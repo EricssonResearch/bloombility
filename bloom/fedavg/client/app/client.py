@@ -2,7 +2,7 @@
 import sys
 
 from collections import OrderedDict
-from bloom import load_data, models
+from bloom import models
 import torch
 import flwr as fl
 import torch.nn as nn
@@ -45,12 +45,12 @@ class FlowerClient(fl.client.NumPyClient):
     def __init__(self):
         self.net = models.FedAvgCNN().to(DEVICE)
 
-    def load_dataset(self):
+    def load_dataset(self, train_path, test_path):
         batch_size = 32
         # Load the training dataset for this client
-        self.trainloader, self.testloader = load_data.CIFARTEN.get_cifar10_datasets(".")
 
-        # self.testloader = torch.load(test_path)
+        self.trainloader = torch.load(train_path)
+        self.testloader = torch.load(test_path)
         # Calculate the total number of samples
         num_trainset = len(self.trainloader) * batch_size
         num_testset = len(self.testloader) * batch_size
@@ -78,9 +78,11 @@ class FlowerClient(fl.client.NumPyClient):
 
 if __name__ == "__main__":
     # Initialize and start a single client
-    if len(sys.argv) == 1:
+    if len(sys.argv) == 3:
+        train_dataset_path = sys.argv[1]
+        test_dataset_path = sys.argv[2]
         client = FlowerClient()
-        client.load_dataset()
+        client.load_dataset(train_dataset_path, test_dataset_path)
         fl.client.start_numpy_client(server_address="127.0.0.1:8080", client=client)
     else:
         raise Exception(
