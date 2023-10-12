@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 import sys
 
+# navigate to the root of the project and import the bloom package
+sys.path.insert(0, "../..")  # the root path of the project
+import bloom
+
 from collections import OrderedDict
 from bloom import models
 import torch

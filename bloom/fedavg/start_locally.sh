@@ -18,12 +18,17 @@ then
 	python3 server/app/server.py &
 	# Start all devices
 	i=1
-	while [ $i -le $n_devices ]
-	do
+	# while [ $i -le $n_devices ]
+	for i in `seq 1 $n_devices`; do
 		echo "Starting client$i"
 		python3 client/app/client.py datasets/train_dataset${i}_${n_devices}.pth datasets/test_dataset.pth &
-		let "i+=1"
+		# let "i+=1"
 	done
+
+	# Enable CTRL+C to stop all background processes
+	trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM
+	# Wait for all background processes to complete
+	wait
 else
 	echo "Error: There must be at least one device!"
 fi

@@ -5,6 +5,10 @@ import torch
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader, random_split
 from torchvision.datasets import CIFAR10
+
+# navigate to the root of the project and import the bloom package
+sys.path.insert(0, "../..")  # the root path of the project
+import bloom
 from bloom import load_data
 from bloom.load_data.download_cifar10 import CIFARTEN
 
