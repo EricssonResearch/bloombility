@@ -7,7 +7,7 @@ import flwr as fl
 import torch.nn as nn
 import torch.nn.functional as F
 
-from context import models
+from bloom import models
 
 DEVICE = torch.device("cpu")
 
@@ -43,7 +43,7 @@ def test(net, testloader):
 
 class FlowerClient(fl.client.NumPyClient):
     def __init__(self):
-        self.net = models.FedAvgCNN.to(DEVICE)
+        self.net = models.FedAvgCNN().to(DEVICE)
 
     def load_dataset(self, train_path, test_path):
         batch_size = 32
