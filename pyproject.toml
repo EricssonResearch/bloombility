@@ -14,6 +14,7 @@ keywords = ["federated-learning", "split-learning"]
 dependencies = [
     "torch==2.1.0",
     "torchvision==0.16.0",
+    "flwr==1.5.0",
     "pyyaml==6.0.1",
     "tqdm==4.66.1",
     "pandas==2.1.1",
