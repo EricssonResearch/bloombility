@@ -6,6 +6,7 @@ import torch.nn as nn
 
 from bloom import models
 from bloom import load_data
+from bloom import config
 
 
 # based on tutorial here: https://blog.paperspace.com/writing-cnns-from-scratch-in-pytorch/
@@ -34,7 +35,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 # ----------------------------------------- dataset ------------------------------------------------------
-def get_preprocessed_FEMNIST():
+def get_preprocessed_FEMNIST() -> torch.utils.data.Dataset:
     """ "downloads and transforms FEMNIST
 
     Returns:
@@ -56,7 +57,7 @@ def get_preprocessed_FEMNIST():
     return trainset, testset
 
 
-def get_preprocessed_CIFAR10():
+def get_preprocessed_CIFAR10() -> torch.utils.data.Dataset:
     """ "downloads and transforms CIFAR10
 
     Returns:
@@ -84,7 +85,9 @@ def get_preprocessed_CIFAR10():
     return trainset, testset
 
 
-def transform_to_loader(data, hyper_params):
+def transform_to_loader(
+    data: torch.utils.data.Dataset, hyper_params: dict
+) -> torch.utils.data.DataLoader:
     """get a dataset, convert it into a torch DataLoader
 
     Params:
@@ -101,7 +104,9 @@ def transform_to_loader(data, hyper_params):
     )
 
 
-def get_classification_loaders(_dataset, hyper_params):
+def get_classification_loaders(
+    _dataset: str, hyper_params: dict
+) -> torch.utils.data.DataLoader:
     """based on the chosen dataset, retrieve the data, pre-process it
     and convert it into a DataLoader
 
@@ -130,7 +135,9 @@ def get_classification_loaders(_dataset, hyper_params):
 # ----------------------------------------- config -------------------------------------------------------
 
 
-def get_classification_optimizer(_opt, model, hyper_params):
+def get_classification_optimizer(
+    _opt: str, model: nn.Module, hyper_params: dict
+) -> torch.optim:
     """based on yaml config, return optimizer
 
     Params:
@@ -166,7 +173,7 @@ def get_classification_optimizer(_opt, model, hyper_params):
     return optimizer
 
 
-def get_classification_model(_dataset):
+def get_classification_model(_dataset: str) -> nn.Module:
     """based on the chosen dataset, return correct model
     Params:
         _dataset: chosen dataset
@@ -185,7 +192,7 @@ def get_classification_model(_dataset):
     return model
 
 
-def get_classification_loss(_loss):
+def get_classification_loss(_loss: str) -> nn:
     """based on the chosen loss, return correct loss function object
     Params:
         _loss: chosen loss
@@ -310,7 +317,7 @@ def classification_accuracy(testloader, model, epoch):
         return acc
 
 
-def main(config):
+def main(config: config.Config) -> None:
     """
     reads config, downloads / locally loads chosen dataset, preprocesses it,
     defines the chosen model, optimizer and loss, and starts training

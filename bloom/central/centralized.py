@@ -6,9 +6,12 @@ import torch.nn as nn
 
 from bloom import models
 from bloom import load_data
+from bloom import config
 
 
-def wandb_setup(wandb_key, _dataset, _opt, _loss, hyper_params):
+def wandb_setup(
+    wandb_key: str, _dataset: str, _opt: str, _loss: str, hyper_params: dict
+) -> None:
     """logs in to wandb and sets up experiment metadata.
 
         The metadata can be accessed via "files" tab of an experiment in the website
@@ -39,7 +42,7 @@ def wandb_setup(wandb_key, _dataset, _opt, _loss, hyper_params):
     return
 
 
-def setup_config(config, task):
+def setup_config(config: config.Config, task: str) -> None:
     """
     reads config, downloads dataset, preprocesses it,
     defines the chosen model, optimizer and loss, and starts training
@@ -64,8 +67,10 @@ def setup_config(config, task):
     if wandb_track:
         wandb_setup(wandb_key, _dataset, _opt, _loss, hyper_params)
 
+    return
 
-def main(config):
+
+def main(config: config.Config) -> None:
     pass
 
 

@@ -12,13 +12,14 @@ from sklearn.model_selection import train_test_split
 from sklearn.datasets import fetch_california_housing
 
 from bloom import models
+from bloom import config
 
 # Device will determine whether to run the training on GPU or CPU.
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 # ----------------------------------------- dataset ------------------------------------------------------
-def preprocess_california(batch_size):
+def preprocess_california(batch_size: int) -> torch.utils.data.DataLoader:
     """preprocess the california dataset into a torch DataLoader
 
     split data into train and test,
@@ -59,7 +60,9 @@ def preprocess_california(batch_size):
     return trainloader, testloader
 
 
-def get_regression_loaders(_dataset, hyper_params):
+def get_regression_loaders(
+    _dataset: str, hyper_params: dict
+) -> torch.utils.data.DataLoader:
     """based on the chosen dataset, retrieve the data, pre-process it
     and convert it into a DataLoader
 
@@ -80,7 +83,9 @@ def get_regression_loaders(_dataset, hyper_params):
 
 
 # ----------------------------------------- config -------------------------------------------------------
-def get_regression_optimizer(_opt: str, model, hyper_params):
+def get_regression_optimizer(
+    _opt: str, model: nn.Module, hyper_params: dict
+) -> torch.optim:
     """based on yaml config, return optimizer
 
     Params:
@@ -98,7 +103,7 @@ def get_regression_optimizer(_opt: str, model, hyper_params):
     return optimizer
 
 
-def get_regression_model(_dataset: str):
+def get_regression_model(_dataset: str) -> nn.Module:
     """based on the chosen dataset, return correct model
     Params:
         _dataset: chosen dataset
@@ -114,7 +119,7 @@ def get_regression_model(_dataset: str):
     return model
 
 
-def get_regression_loss(_loss: str):
+def get_regression_loss(_loss: str) -> nn:
     """based on the chosen loss, return correct loss function object
     Params:
         _loss: chosen loss
@@ -133,7 +138,7 @@ def get_regression_loss(_loss: str):
 # ----------------------------------------- training & testing --------------------------------------------
 
 
-def main(config):
+def main(config: config.Config) -> None:
     """
     reads config, downloads dataset, preprocesses it,
     defines the chosen model, optimizer and loss, and starts training
