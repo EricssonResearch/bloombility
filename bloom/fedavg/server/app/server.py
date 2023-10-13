@@ -37,9 +37,9 @@ def weighted_average(metrics):
 strategy = None
 if strat == "FedAdam":
     strategy = fl.server.strategy.FedAdam(
-        fraction_fit=1,
-        fraction_evaluate=1,
-        min_fit_clients=2,
+        fraction_fit=0.5,
+        fraction_evaluate=0.5,
+        min_fit_clients=3,
         min_evaluate_clients=3,
         min_available_clients=3,
         initial_parameters=fl.common.ndarrays_to_parameters(params),
