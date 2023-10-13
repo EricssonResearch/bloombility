@@ -23,6 +23,13 @@ def preprocess_california(batch_size):
 
     split data into train and test,
     reshape them into tensors and convert them to DataLoaders
+
+    Params:
+        batch_size: size of the batches
+
+    Returns:
+        trainloader: training data DataLoader object
+        testloader: testing data DataLoader object
     """
     data = fetch_california_housing()
     X, y = data.data, data.target
@@ -52,7 +59,76 @@ def preprocess_california(batch_size):
     return trainloader, testloader
 
 
+def get_regression_loaders(_dataset, hyper_params):
+    """based on the chosen dataset, retrieve the data, pre-process it
+    and convert it into a DataLoader
+
+    Params:
+        _dataset: chosen dataset
+        hyper_params: config dictionary with batch size key-value pair
+
+    Returns:
+        trainloader: training data DataLoader object
+        testloader: testing data DataLoader object
+    """
+    if _dataset == "CaliforniaHousing":
+        trainloader, testloader = preprocess_california(hyper_params["batch_size"])
+    else:
+        print("Unrecognized dataset")
+        quit()
+    return trainloader, testloader
+
+
 # ----------------------------------------- config -------------------------------------------------------
+def get_regression_optimizer(_opt: str, model, hyper_params):
+    """based on yaml config, return optimizer
+
+    Params:
+        _opt: chosen optimizer
+        model: model to optimize
+        hyper_params: yaml config dictionary with at least learning rate defined
+    Returns:
+        optimizer: configured optimizer
+    """
+    if _opt == "Adam":
+        optimizer = optim.Adam(model.parameters(), hyper_params["learning_rate"])
+    else:
+        print("Unrecognized optimizer!")
+        quit()
+    return optimizer
+
+
+def get_regression_model(_dataset: str):
+    """based on the chosen dataset, return correct model
+    Params:
+        _dataset: chosen dataset
+
+    Returns:
+        model: model as defined in Networks file
+    """
+    if _dataset == "CaliforniaHousing":
+        model = models.Networks.RegressionModel().to(device)
+    else:
+        print("Unrecognized dataset")
+        quit()
+    return model
+
+
+def get_regression_loss(_loss: str):
+    """based on the chosen loss, return correct loss function object
+    Params:
+        _loss: chosen loss
+
+    Returns:
+        loss_fn: loss function object
+    """
+    if _loss == "MSELoss":
+        loss_fn = nn.MSELoss()  # mean square error'
+    else:
+        print("Unrecognized loss funct")
+        quit()
+    return loss_fn
+
 
 # ----------------------------------------- training & testing --------------------------------------------
 
@@ -92,18 +168,13 @@ def main(config):
             },
         )
 
-    # Read data
-    if _dataset == "CaliforniaHousing":
-        trainloader, testloader = preprocess_california(hyper_params["batch_size"])
+    # data
+    trainloader, testloader = get_regression_loaders(_dataset, hyper_params)
 
-    # Create the model
-    model = models.Networks.RegressionModel().to(device)
-
-    # loss function and optimizer
-    if _loss == "MSELoss":
-        loss_fn = nn.MSELoss()  # mean square error'
-    if _opt == "Adam":
-        optimizer = optim.Adam(model.parameters(), hyper_params["learning_rate"])
+    # config
+    model = get_regression_model(_dataset)
+    loss_fn = get_regression_loss(_loss)
+    optimizer = get_regression_optimizer(_opt, model, hyper_params)
 
     n_epochs = hyper_params["num_epochs"]  # number of epochs to run
 
