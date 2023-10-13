@@ -19,7 +19,8 @@ DEVICE = torch.device("cpu")
 def train(net, trainloader, epochs):
     """Train the network on the training set."""
     criterion = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+    # optimizer = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+    optimizer = torch.optim.Adam(net.parameters())
     for _ in range(epochs):
         for images, labels in trainloader:
             images, labels = images.to(DEVICE), labels.to(DEVICE)
@@ -71,7 +72,7 @@ class FlowerClient(fl.client.NumPyClient):
 
     def fit(self, parameters, config):
         self.set_parameters(parameters)
-        train(self.net, self.trainloader, epochs=1)
+        train(self.net, self.trainloader, epochs=2)
         return self.get_parameters(config={}), self.num_examples["trainset"], {}
 
     def evaluate(self, parameters, config):
