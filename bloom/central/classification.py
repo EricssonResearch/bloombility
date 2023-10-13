@@ -32,9 +32,179 @@ num_FEMNIST_classes = 10
 # Device will determine whether to run the training on GPU or CPU.
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# ----------------------------------------- classification methods ------------------------------------------------------
+
+# ----------------------------------------- dataset ------------------------------------------------------
+def get_preprocessed_FEMNIST():
+    """ "downloads and transforms FEMNIST
+
+    Returns:
+        trainset: Training dataset
+        testset: Testing dataset
+    """
+    transform = transforms.Compose(
+        [transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))]
+    )
+    # download FEMNIST training dataset and apply transform
+    trainset = load_data.download_femnist.FEMNIST(
+        root="./data", train=True, download=True, transform=transform
+    )
+    # download FEMNIST testing dataset and apply transform
+    testset = load_data.download_femnist.FEMNIST(
+        root="./data", train=False, download=True, transform=transform
+    )
+
+    return trainset, testset
 
 
+def get_preprocessed_CIFAR10():
+    """ "downloads and transforms CIFAR10
+
+    Returns:
+        trainset: Training dataset
+        testset: Testing dataset
+    """
+    # has three channels b/c it is RGB -> normalize on three layers
+    transform = transforms.Compose(
+        [
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+        ]
+    )
+
+    # download CIFAR10 training dataset and apply transform
+    trainset = torchvision.datasets.CIFAR10(
+        root="./data", train=True, download=True, transform=transform
+    )
+
+    # download CIFAR10 testing dataset and apply transform
+    testset = torchvision.datasets.CIFAR10(
+        root="./data", train=False, download=True, transform=transform
+    )
+
+    return trainset, testset
+
+
+def transform_to_loader(data, hyper_params):
+    """get a dataset, convert it into a torch DataLoader
+
+    Params:
+        data: dataset to convert
+        hyperparams: configuration dictionary including batch size and number of workers
+    Returns:
+        DataLoader object
+    """
+    return torch.utils.data.DataLoader(
+        data,
+        batch_size=hyper_params["batch_size"],
+        shuffle=True,
+        num_workers=hyper_params["num_workers"],
+    )
+
+
+def get_classification_loaders(_dataset, hyper_params):
+    """based on the chosen dataset, retrieve the data, pre-process it
+    and convert it into a DataLoader
+
+    Params:
+        _dataset: chosen dataset
+
+    Returns:
+        trainloader: training data DataLoader object
+        testloader: testing data DataLoader object
+    """
+    # set up data
+    if _dataset == "CIFAR10":
+        trainset, testset = get_preprocessed_CIFAR10()
+    elif _dataset == "FEMNIST":
+        trainset, testset = get_preprocessed_FEMNIST()
+    else:
+        print("Unrecognized dataset")
+        quit()
+
+    trainloader = transform_to_loader(trainset, hyper_params)
+    testloader = transform_to_loader(testset, hyper_params)
+
+    return trainloader, testloader
+
+
+# ----------------------------------------- config -------------------------------------------------------
+
+
+def get_classification_optimizer(_opt, model, hyper_params):
+    """based on yaml config, return optimizer
+
+    Params:
+        _opt: chosen optimizer
+        model: model to optimize
+        hyper_params: yaml config dictionary with at least learning rate defined
+    Returns:
+        optimizer: configured optimizer
+    """
+    if _opt == "Adam":
+        optimizer = torch.optim.Adam(
+            model.parameters(), lr=hyper_params["learning_rate"]
+        )
+    elif _opt == "Adagrad":
+        optimizer = torch.optim.Adagrad(
+            model.parameters(), lr=hyper_params["learning_rate"]
+        )
+    elif _opt == "Adadelta":
+        optimizer = torch.optim.Adadelta(
+            model.parameters(), lr=hyper_params["learning_rate"]
+        )
+    elif _opt == "RMSProp":
+        optimizer = torch.optim.RMSprop(
+            model.parameters(), lr=hyper_params["learning_rate"]
+        )
+    elif _opt == "SGD":
+        optimizer = torch.optim.SGD(
+            model.parameters(), lr=hyper_params["learning_rate"]
+        )
+    else:
+        print("Unrecognized optimizer!")
+        quit()
+    return optimizer
+
+
+def get_classification_model(_dataset):
+    """based on the chosen dataset, return correct model
+    Params:
+        _dataset: chosen dataset
+
+    Returns:
+        model: model as defined in Networks file
+    """
+    # setting up model
+    if _dataset == "CIFAR10":
+        model = models.Networks.CNNCifar(num_CIFAR_classes).to(device)
+    elif _dataset == "FEMNIST":
+        model = models.Networks.CNNFemnist(num_FEMNIST_classes).to(device)
+    else:
+        print("did not recognized chosen NN model. Check your constants.")
+        quit()
+    return model
+
+
+def get_classification_loss(_loss):
+    """based on the chosen loss, return correct loss function object
+    Params:
+        _loss: chosen loss
+
+    Returns:
+        cost: loss function object
+    """
+    # Setting the loss function
+    if _loss == "CrossEntropyLoss":
+        cost = nn.CrossEntropyLoss()
+    elif _loss == "NLLLoss":
+        cost = nn.NLLLoss()
+    else:
+        print("Unrecognized loss funct")
+        quit()
+    return cost
+
+
+# ----------------------------------------- training & testing --------------------------------------------
 def training(trainloader, testloader, model, num_epochs, optimizer, cost, wandb_track):
     """
     trains the model on training dataset
@@ -45,7 +215,7 @@ def training(trainloader, testloader, model, num_epochs, optimizer, cost, wandb_
         Propagate the difference of model weights backwards through the model to improve classification.
         Repeat this procedure for each image in the training dataset.
 
-    Afterwards, call eval_results to estimate model performance on test set.
+    Afterwards, call classification_accuracy to estimate model performance on test set.
 
     Args:
         trainloader: the preprocessed training set in a lightweight format
@@ -89,7 +259,7 @@ def training(trainloader, testloader, model, num_epochs, optimizer, cost, wandb_
 
         # set to evaluation mode
         model.eval()
-        acc_per_epoch = eval_results(testloader, model, epoch)
+        acc_per_epoch = classification_accuracy(testloader, model, epoch)
 
         if wandb_track:
             wandb.log(
@@ -104,7 +274,7 @@ def training(trainloader, testloader, model, num_epochs, optimizer, cost, wandb_
         wandb.finish()
 
 
-def eval_results(testloader, model, epoch):
+def classification_accuracy(testloader, model, epoch):
     """
     evaluates accuracy of network on train dataset
 
@@ -175,105 +345,13 @@ def main(config):
             },
         )
 
-    # set up transform to normalize data
-    if _dataset == "CIFAR10":
-        # has three channels b/c it is RGB -> normalize on three layers
-        transform = transforms.Compose(
-            [
-                transforms.ToTensor(),
-                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-            ]
-        )
-    elif _dataset == "FEMNIST":
-        # has one channel b/c it is grayscale -> normalize on one layer
-        transform = transforms.Compose(
-            [transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))]
-        )
-    else:
-        print("Unrecognized dataset")
-        quit()
+    # set up data
+    trainloader, testloader = get_classification_loaders(_dataset, hyper_params)
 
-    if _dataset == "CIFAR10":
-        # download CIFAR10 training dataset and apply transform
-        trainset = torchvision.datasets.CIFAR10(
-            root="./data", train=True, download=True, transform=transform
-        )
-
-        # download CIFAR10 testing dataset and apply transform
-        testset = torchvision.datasets.CIFAR10(
-            root="./data", train=False, download=True, transform=transform
-        )
-
-    elif _dataset == "FEMNIST":
-        # download FEMNIST training dataset and apply transform
-        trainset = load_data.download_femnist.FEMNIST(
-            root="./data", train=True, download=True, transform=transform
-        )
-        # download FEMNIST testing dataset and apply transform
-        testset = load_data.download_femnist.FEMNIST(
-            root="./data", train=False, download=True, transform=transform
-        )
-    else:
-        print("unrecognized option for dataset")
-        quit()
-
-    # torch applies multithreading, shuffling and batch learning
-    trainloader = torch.utils.data.DataLoader(
-        trainset,
-        batch_size=hyper_params["batch_size"],
-        shuffle=True,
-        num_workers=hyper_params["num_workers"],
-    )
-
-    testloader = torch.utils.data.DataLoader(
-        testset,
-        batch_size=hyper_params["batch_size"],
-        shuffle=False,
-        num_workers=hyper_params["num_workers"],
-    )
-
-    # setting up model
-    if _dataset == "CIFAR10":
-        model = models.Networks.CNNCifar(num_CIFAR_classes).to(device)
-    elif _dataset == "FEMNIST":
-        model = models.Networks.CNNFemnist(num_FEMNIST_classes).to(device)
-    else:
-        print("did not recognized chosen NN model. Check your constants.")
-        quit()
-
-    # Setting the loss function
-    if _loss == "CrossEntropyLoss":
-        cost = nn.CrossEntropyLoss()
-    elif _loss == "NLLLoss":
-        cost = nn.NLLLoss()
-    else:
-        print("Unrecognized loss funct")
-        quit()
-
-    # Setting the optimizer with the model parameters and learning rate
-    if _opt == "Adam":
-        optimizer = torch.optim.Adam(
-            model.parameters(), lr=hyper_params["learning_rate"]
-        )
-    elif _opt == "Adagrad":
-        optimizer = torch.optim.Adagrad(
-            model.parameters(), lr=hyper_params["learning_rate"]
-        )
-    elif _opt == "Adadelta":
-        optimizer = torch.optim.Adadelta(
-            model.parameters(), lr=hyper_params["learning_rate"]
-        )
-    elif _opt == "RMSProp":
-        optimizer = torch.optim.RMSprop(
-            model.parameters(), lr=hyper_params["learning_rate"]
-        )
-    elif _opt == "SGD":
-        optimizer = torch.optim.SGD(
-            model.parameters(), lr=hyper_params["learning_rate"]
-        )
-    else:
-        print("Unrecognized optimizer!")
-        quit()
+    # config
+    model = get_classification_model(_dataset)
+    cost = get_classification_loss(_loss)
+    optimizer = get_classification_optimizer(_opt, model, hyper_params)
 
     # start training process
     training(

@@ -17,6 +17,7 @@ from bloom import models
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
+# ----------------------------------------- dataset ------------------------------------------------------
 def preprocess_california(batch_size):
     """preprocess the california dataset into a torch DataLoader
 
@@ -49,6 +50,11 @@ def preprocess_california(batch_size):
     )
 
     return trainloader, testloader
+
+
+# ----------------------------------------- config -------------------------------------------------------
+
+# ----------------------------------------- training & testing --------------------------------------------
 
 
 def main(config):
