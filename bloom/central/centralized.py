@@ -1,6 +1,7 @@
 import wandb  # for tracking experiments
 import torch
 import torch.nn as nn
+import tqdm
 
 from bloom import config
 import classification as clas
@@ -115,58 +116,69 @@ def training(
 
     """
     # this is defined to print how many steps are remaining when training
-    total_step = len(trainloader)
+    # total_step = len(trainloader)
 
     for epoch in range(num_epochs):
         # set to training mode
         model.train()
         epoch_loss = 0
-        for i, (images, labels) in enumerate(trainloader):
-            images = images.to(device)
-            labels = labels.to(device)
 
-            # Forward pass
-            outputs = model(images)
-            loss = cost(outputs, labels)
-            epoch_loss += loss.item()
+        # tqdm generates a graphical progress bar in the console
+        with tqdm.tqdm(
+            trainloader, desc=f"Epoch {epoch}/{num_epochs}", unit="steps"
+        ) as tepoch:
+            for i, (images, labels) in enumerate(tepoch):
+                images = images.to(device)
+                labels = labels.to(device)
 
-            # Backward and optimize
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+                # Forward pass
+                outputs = model(images)
+                loss = cost(outputs, labels)
+                epoch_loss += loss.item()
 
-            if wandb_track:
-                # log metrics to wandb
-                wandb.log({"step_loss": loss.item()})
+                # Backward and optimize
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
 
-            # print progress to console
-            if (i + 1) % 400 == 0:
-                print(
-                    "Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}".format(
-                        epoch + 1, num_epochs, i + 1, total_step, loss.item()
+                if wandb_track:
+                    # log metrics to wandb
+                    wandb.log({"step_loss": loss.item()})
+
+                # print progress to console
+                """
+                if (i + 1) % 400 == 0:
+                    print(
+                        "Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}".format(
+                            epoch + 1, num_epochs, i + 1, total_step, loss.item()
+                        )
                     )
+                """
+
+            # set to evaluation mode
+            model.eval()
+
+            # task-based accuracy calculation
+            if task == "classification":
+                acc_per_epoch = clas.classification_accuracy(testloader, model, device)
+            elif task == "regression":
+                acc_per_epoch = regr.regression_accuracy(
+                    testloader, model, device, 0.10
                 )
+            else:
+                print("unrecognized task!")
+                quit()
 
-        # set to evaluation mode
-        model.eval()
-
-        # task-based accuracy calculation
-        if task == "classification":
-            acc_per_epoch = clas.classification_accuracy(testloader, model, device)
-        elif task == "regression":
-            acc_per_epoch = regr.regression_accuracy(testloader, model, device, 0.10)
-        else:
-            print("unrecognized task!")
-            quit()
-
-        print("epoch accuracy: ", acc_per_epoch)
-        if wandb_track:
-            wandb.log(
-                {
-                    "epoch_loss": epoch_loss / len(trainloader),
-                    "epoch_acc": acc_per_epoch,
-                }
+            print(
+                f"Epoch accuracy: {acc_per_epoch}, Epoch loss: {epoch_loss / len(trainloader)} "
             )
+            if wandb_track:
+                wandb.log(
+                    {
+                        "epoch_loss": epoch_loss / len(trainloader),
+                        "epoch_acc": acc_per_epoch,
+                    }
+                )
 
     if wandb_track:
         # [optional] finish the wandb run, necessary in notebooks
