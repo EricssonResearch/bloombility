@@ -1,4 +1,3 @@
-import wandb  # for tracking experiments
 import torch
 import torchvision
 import torchvision.transforms as transforms
@@ -6,7 +5,6 @@ import torch.nn as nn
 
 from bloom import models
 from bloom import load_data
-from bloom import config
 
 
 # based on tutorial here: https://blog.paperspace.com/writing-cnns-from-scratch-in-pytorch/

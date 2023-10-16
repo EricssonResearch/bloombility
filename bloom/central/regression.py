@@ -1,9 +1,6 @@
 # Document attribution:
 # based on tutorial here: https://machinelearningmastery.com/building-a-regression-model-in-pytorch/
 
-import wandb  # for tracking experiments
-import copy
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -12,7 +9,6 @@ from sklearn.model_selection import train_test_split
 from sklearn.datasets import fetch_california_housing
 
 from bloom import models
-from bloom import config
 
 
 # ----------------------------------------- dataset ------------------------------------------------------
