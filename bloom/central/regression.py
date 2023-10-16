@@ -14,12 +14,11 @@ from sklearn.datasets import fetch_california_housing
 from bloom import models
 from bloom import config
 
-# Device will determine whether to run the training on GPU or CPU.
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 
 # ----------------------------------------- dataset ------------------------------------------------------
-def preprocess_california(batch_size: int) -> torch.utils.data.DataLoader:
+def preprocess_california(
+    batch_size: int,
+) -> tuple[torch.utils.data.DataLoader, torch.utils.data.DataLoader]:
     """preprocess the california dataset into a torch DataLoader
 
     split data into train and test,
@@ -27,6 +26,7 @@ def preprocess_california(batch_size: int) -> torch.utils.data.DataLoader:
 
     Params:
         batch_size: size of the batches
+        device: where calculations are performed (cuda, which means gpu / cpu)
 
     Returns:
         trainloader: training data DataLoader object
@@ -41,10 +41,10 @@ def preprocess_california(batch_size: int) -> torch.utils.data.DataLoader:
     )
 
     # Convert to 2D PyTorch tensors
-    X_train = torch.tensor(X_train, dtype=torch.float32).to(device)
-    y_train = torch.tensor(y_train, dtype=torch.float32).reshape(-1, 1).to(device)
-    X_test = torch.tensor(X_test, dtype=torch.float32).to(device)
-    y_test = torch.tensor(y_test, dtype=torch.float32).reshape(-1, 1).to(device)
+    X_train = torch.tensor(X_train, dtype=torch.float32)
+    y_train = torch.tensor(y_train, dtype=torch.float32).reshape(-1, 1)
+    X_test = torch.tensor(X_test, dtype=torch.float32)
+    y_test = torch.tensor(y_test, dtype=torch.float32).reshape(-1, 1)
 
     trainloader = torch.utils.data.DataLoader(
         [[X_train[i], y_train[i]] for i in range(len(y_train))],
@@ -62,7 +62,7 @@ def preprocess_california(batch_size: int) -> torch.utils.data.DataLoader:
 
 def get_regression_loaders(
     _dataset: str, hyper_params: dict
-) -> torch.utils.data.DataLoader:
+) -> tuple[torch.utils.data.DataLoader, torch.utils.data.DataLoader]:
     """based on the chosen dataset, retrieve the data, pre-process it
     and convert it into a DataLoader
 
@@ -103,10 +103,11 @@ def get_regression_optimizer(
     return optimizer
 
 
-def get_regression_model(_dataset: str) -> nn.Module:
+def get_regression_model(_dataset: str, device: str) -> nn.Module:
     """based on the chosen dataset, return correct model
     Params:
         _dataset: chosen dataset
+        device: where calculations are performed (cuda, which means gpu / cpu)
 
     Returns:
         model: model as defined in Networks file
@@ -128,130 +129,22 @@ def get_regression_loss(_loss: str) -> nn:
         loss_fn: loss function object
     """
     if _loss == "MSELoss":
-        loss_fn = nn.MSELoss()  # mean square error'
+        loss_fn = nn.MSELoss()  # mean square error
     else:
         print("Unrecognized loss funct")
         quit()
     return loss_fn
 
 
-# ----------------------------------------- training & testing --------------------------------------------
+# ------------------------------- accuracy ---------------------------------------------------------------
 
 
-def main(config: config.Config) -> None:
-    """
-    reads config, downloads dataset, preprocesses it,
-    defines the chosen model, optimizer and loss, and starts training
-    """
-    _dataset = config.get_chosen_datasets("regression")
-    _opt = config.get_chosen_optimizers("regression")
-    _loss = config.get_chosen_loss("regression")
-    wandb_track = config.get_wand_active()
-    wandb_key = config.get_wandb_key()
-    hyper_params = config.get_hyperparams()
-
-    print("Device:", device)
-    print("Dataset: ", _dataset)
-    print("Optimizer: ", _opt)
-    print("Loss: ", _loss)
-    print("Hyper-parameters: ", hyper_params)
-
-    if wandb_track:
-        wandb.login(anonymous="never", key=wandb_key)
-        # start a new wandb run to track this script
-        wandb.init(
-            # set the wandb project where this run will be logged
-            entity="cs_team_b",
-            project="bloomnet_visualization",
-            # track hyperparameters and run metadata
-            config={
-                "learning_rate": hyper_params["learning_rate"],
-                "dataset": _dataset,
-                "optimizer": _opt,
-                "epochs": hyper_params["num_epochs"],
-                "loss": _loss,
-            },
-        )
-
-    # data
-    trainloader, testloader = get_regression_loaders(_dataset, hyper_params)
-
-    # config
-    model = get_regression_model(_dataset)
-    loss_fn = get_regression_loss(_loss)
-    optimizer = get_regression_optimizer(_opt, model, hyper_params)
-
-    n_epochs = hyper_params["num_epochs"]  # number of epochs to run
-
-    # Hold the best model
-    best_mse = np.inf  # init to infinity
-    best_weights = None
-
-    total_step = len(trainloader)
-
-    for epoch in range(n_epochs):
-        model.train()
-        epoch_loss = 0
-        for i, (images, labels) in enumerate(trainloader):
-            images = images.to(device)
-            labels = labels.to(device)
-
-            # forward pass
-            y_pred = model.forward(images)
-            loss = loss_fn(y_pred, labels)
-            epoch_loss += loss.item()
-
-            # backward pass
-            optimizer.zero_grad()
-            loss.backward()
-            # update weights
-            optimizer.step()
-
-            if wandb_track:
-                # log metrics to wandb
-                wandb.log({"step mse": loss.item()})
-
-            if (i + 1) % 400 == 0:
-                print(
-                    "Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}".format(
-                        epoch + 1, n_epochs, i + 1, total_step, loss.item()
-                    )
-                )
-
-        # evaluate loss & accuracy at end of each epoch
-        with torch.no_grad():
-            model.eval()
-            acc_per_epoch = regression_accuracy(testloader, model, 0.10)
-
-        print("acc:", acc_per_epoch)
-        print("epoch mse:", epoch_loss / len(trainloader))
-        if wandb_track:
-            # log metrics to wandb
-            wandb.log(
-                {
-                    "epoch mse": epoch_loss / len(trainloader),
-                    "epoch accuracy": acc_per_epoch,
-                }
-            )
-
-        mse = epoch_loss / len(trainloader)
-        # save best model
-        if mse < best_mse:
-            best_mse = mse
-            best_weights = copy.deepcopy(model.state_dict())
-
-    # restore model and return best accuracy
-    model.load_state_dict(best_weights)
-    print()
-    print("Overall MSE: %.2f" % best_mse)
-    print("Overall RMSE: %.2f" % np.sqrt(best_mse))
-
-    if wandb_track:
-        # [optional] finish the wandb run, necessary in notebooks
-        wandb.finish()
-
-
-def regression_accuracy(testloader, model, pct_close):
+def regression_accuracy(
+    testloader: torch.utils.data.DataLoader,
+    model: nn.Module,
+    device: str,
+    pct_close: float,
+) -> float:
     """
     evaluates accuracy of network on test dataset
 
@@ -261,10 +154,12 @@ def regression_accuracy(testloader, model, pct_close):
     This ensures that the model does not just "know the training data results by heart",
     but has actually found and learned patterns in the training data
 
-    Args:
+    Params:
         testloader: the preprocessed testing set in a lightweight format
         model: the pretrained(!) NN model to be evaluated
         pct_close: percentage how close the prediction needs to be to be considered correct
+    Returns:
+        acc: regression accuracy
 
     """
     n_correct = 0
@@ -287,8 +182,3 @@ def regression_accuracy(testloader, model, pct_close):
 
     acc = (n_correct * 1.0) / (n_correct + n_wrong)
     return acc
-
-
-# call main function when running the script
-if __name__ == "__main__":
-    main()

@@ -30,12 +30,11 @@ num_CIFAR_classes = len(CIFAR10_classes)
 num_FEMNIST_classes = 10
 # ^^^^ --------------do not change ---------------------------- ^^^^
 
-# Device will determine whether to run the training on GPU or CPU.
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
 
 # ----------------------------------------- dataset ------------------------------------------------------
-def get_preprocessed_FEMNIST() -> torch.utils.data.Dataset:
+def get_preprocessed_FEMNIST() -> (
+    tuple[torch.utils.data.Dataset, torch.utils.data.Dataset]
+):
     """ "downloads and transforms FEMNIST
 
     Returns:
@@ -57,7 +56,9 @@ def get_preprocessed_FEMNIST() -> torch.utils.data.Dataset:
     return trainset, testset
 
 
-def get_preprocessed_CIFAR10() -> torch.utils.data.Dataset:
+def get_preprocessed_CIFAR10() -> (
+    tuple[torch.utils.data.Dataset, torch.utils.data.Dataset]
+):
     """ "downloads and transforms CIFAR10
 
     Returns:
@@ -106,12 +107,13 @@ def transform_to_loader(
 
 def get_classification_loaders(
     _dataset: str, hyper_params: dict
-) -> torch.utils.data.DataLoader:
+) -> tuple[torch.utils.data.DataLoader, torch.utils.data.DataLoader]:
     """based on the chosen dataset, retrieve the data, pre-process it
     and convert it into a DataLoader
 
     Params:
         _dataset: chosen dataset
+        hyper_params: dict of configurations, which has to include num_workers and batch_size
 
     Returns:
         trainloader: training data DataLoader object
@@ -173,10 +175,12 @@ def get_classification_optimizer(
     return optimizer
 
 
-def get_classification_model(_dataset: str) -> nn.Module:
+def get_classification_model(_dataset: str, device: str) -> nn.Module:
     """based on the chosen dataset, return correct model
+
     Params:
         _dataset: chosen dataset
+        device: where calculations are performed (cuda, which means gpu / cpu)
 
     Returns:
         model: model as defined in Networks file
@@ -211,88 +215,27 @@ def get_classification_loss(_loss: str) -> nn:
     return cost
 
 
-# ----------------------------------------- training & testing --------------------------------------------
-def training(trainloader, testloader, model, num_epochs, optimizer, cost, wandb_track):
+# --------------------------------- accuracy ----------------------------------------------------
+
+
+def classification_accuracy(
+    testloader: torch.utils.data.DataLoader, model: nn.Module, device: str
+) -> float:
     """
-    trains the model on training dataset
-
-    for each epoch, do the following:
-        present each image from the training dataset to the model and save its output label.
-        With the loss funct, calculate how far off the expected result is from the actual result.
-        Propagate the difference of model weights backwards through the model to improve classification.
-        Repeat this procedure for each image in the training dataset.
-
-    Afterwards, call classification_accuracy to estimate model performance on test set.
-
-    Args:
-        trainloader: the preprocessed training set in a lightweight format
-        testloader: the preprocessed testing set in a lightweight format
-        model: the NN model to be trained
-        optimizer: the optimizer to update the model with
-        cost: the loss function to calculate the difference between expected and actual result
-
-    """
-    # this is defined to print how many steps are remaining when training
-    total_step = len(trainloader)
-
-    for epoch in range(num_epochs):
-        # set to training mode
-        model.train()
-        epoch_loss = 0
-        for i, (images, labels) in enumerate(trainloader):
-            images = images.to(device)
-            labels = labels.to(device)
-
-            # Forward pass
-            outputs = model(images)
-            loss = cost(outputs, labels)
-            epoch_loss += loss.item()
-
-            # Backward and optimize
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-            if wandb_track:
-                # log metrics to wandb
-                wandb.log({"step_loss": loss.item()})
-
-            if (i + 1) % 400 == 0:
-                print(
-                    "Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}".format(
-                        epoch + 1, num_epochs, i + 1, total_step, loss.item()
-                    )
-                )
-
-        # set to evaluation mode
-        model.eval()
-        acc_per_epoch = classification_accuracy(testloader, model, epoch)
-
-        if wandb_track:
-            wandb.log(
-                {
-                    "epoch_loss": epoch_loss / len(trainloader),
-                    "epoch_acc": acc_per_epoch,
-                }
-            )
-
-    if wandb_track:
-        # [optional] finish the wandb run, necessary in notebooks
-        wandb.finish()
-
-
-def classification_accuracy(testloader, model, epoch):
-    """
-    evaluates accuracy of network on train dataset
+    evaluates accuracy of network on test dataset
 
     compares expected with actual output of the model
     when presented with images from previously unseen testing set.
     This ensures that the model does not just "know the training data results by heart",
     but has actually found and learned patterns in the training data
 
-    Args:
+    Params:
         testloader: the preprocessed testing set in a lightweight format
         model: the pretrained(!) NN model to be evaluated
+        device: where calculations are performed (cuda, which means gpu / cpu)
+
+    Returns:
+        acc: accuracy of classification
 
     """
     with torch.no_grad():
@@ -308,70 +251,4 @@ def classification_accuracy(testloader, model, epoch):
 
         acc = 100 * correct / total
 
-        print(
-            "Accuracy of the network after epoch {} on the {} test images: {} %".format(
-                epoch + 1, 50000, acc
-            )
-        )
-
         return acc
-
-
-def main(config: config.Config) -> None:
-    """
-    reads config, downloads / locally loads chosen dataset, preprocesses it,
-    defines the chosen model, optimizer and loss, and starts training
-    """
-    _dataset = config.get_chosen_datasets("classification")
-    _opt = config.get_chosen_optimizers("classification")
-    _loss = config.get_chosen_loss("classification")
-    wandb_track = config.get_wand_active()
-    wandb_key = config.get_wandb_key()
-    hyper_params = config.get_hyperparams()
-
-    print("Device:", device)
-    print("Dataset: ", _dataset)
-    print("Optimizer: ", _opt)
-    print("Loss: ", _loss)
-    print("Hyper-parameters: ", hyper_params)
-
-    if wandb_track:
-        wandb.login(anonymous="never", key=wandb_key)
-        # start a new wandb run to track this script
-        wandb.init(
-            # set the wandb project where this run will be logged
-            entity="cs_team_b",
-            project="bloomnet_visualization",
-            # track hyperparameters and run metadata
-            config={
-                "learning_rate": hyper_params["learning_rate"],
-                "dataset": _dataset,
-                "optimizer": _opt,
-                "epochs": hyper_params["num_epochs"],
-                "loss": _loss,
-            },
-        )
-
-    # set up data
-    trainloader, testloader = get_classification_loaders(_dataset, hyper_params)
-
-    # config
-    model = get_classification_model(_dataset)
-    cost = get_classification_loss(_loss)
-    optimizer = get_classification_optimizer(_opt, model, hyper_params)
-
-    # start training process
-    training(
-        trainloader,
-        testloader,
-        model,
-        hyper_params["num_epochs"],
-        optimizer,
-        cost,
-        wandb_track,
-    )
-
-
-# call main function when running the script
-if __name__ == "__main__":
-    main()
