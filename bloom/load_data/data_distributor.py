@@ -10,6 +10,7 @@ from torchvision.datasets import CIFAR10
 # sys.path.insert(0, "../..")  # the root path of the project
 
 from .download_cifar10 import CIFARTEN
+from bloom import ROOT_DIR
 
 """
 Program to download the CIFAR-10 dataset, split in into a number och clients and
@@ -92,7 +93,9 @@ class DATA_DISTRIBUTOR:
         n_train = len(dataloader.dataset)
         print(f"Store dataset: {dataset_name} (size:{n_train}) ...")
         # Write dataset
-        dataset_filename = f"datasets/{dataset_name}.pth"
+        dataset_filename = os.path.join(
+            ROOT_DIR, "load_data", "datasets", f"{dataset_name}.pth"
+        )
         if os.path.exists(dataset_filename):
             print(f"{dataset_name} already exists!")
         else:
