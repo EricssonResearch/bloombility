@@ -18,11 +18,9 @@ then
 	python3 server/server.py &
 	# Start all devices
 	i=1
-	# while [ $i -le $n_devices ]
 	for i in `seq 1 $n_devices`; do
 		echo "Starting client$i"
 		python3 client/client.py datasets/train_dataset${i}_${n_devices}.pth datasets/test_dataset.pth &
-		# let "i+=1"
 	done
 
 	# Enable CTRL+C to stop all background processes
