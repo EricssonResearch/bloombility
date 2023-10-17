@@ -1,21 +1,18 @@
 #!/usr/bin/env python
 
 import sys
-
-import bloom
-
 from collections import OrderedDict
-from bloom import models
 import torch
 import flwr as fl
-import torch.nn as nn
-import torch.nn.functional as F
 
+from bloom import models
 
 DEVICE = torch.device("cpu")
 
 
-def train(net, trainloader, epochs):
+def train(
+    net: torch.nn.Module, trainloader: torch.utils.data.DataLoader, epochs: int
+) -> None:
     """Train the network on the training set."""
     criterion = torch.nn.CrossEntropyLoss()
     # optimizer = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
@@ -29,8 +26,19 @@ def train(net, trainloader, epochs):
             optimizer.step()
 
 
-def test(net, testloader):
-    """Validate the network on the entire test set."""
+def test(
+    net: torch.nn.Module, testloader: torch.utils.data.DataLoader
+) -> tuple[float, float]:
+    """Validate the network on the entire test set.
+
+    Calculates classification accuracy & loss.
+    Params:
+        net: Network to be tested
+        testloader: test dataset to evaluate Network with
+    Returns:
+        loss: difference between expected and actual result
+        accuracy: accuracy of network on testing dataset
+    """
     criterion = torch.nn.CrossEntropyLoss()
     correct, total, loss = 0, 0, 0.0
     with torch.no_grad():
@@ -50,7 +58,7 @@ class FlowerClient(fl.client.NumPyClient):
         self.net = models.FedAvgCNN().to(DEVICE)
 
     def load_dataset(self, train_path, test_path):
-        batch_size = 32
+        batch_size = 32  # <- export this to config file
         # Load the training dataset for this client
 
         self.trainloader = torch.load(train_path)
@@ -71,7 +79,7 @@ class FlowerClient(fl.client.NumPyClient):
 
     def fit(self, parameters, config):
         self.set_parameters(parameters)
-        train(self.net, self.trainloader, epochs=2)
+        train(self.net, self.trainloader, epochs=2)  # <- export epochs to config file
         return self.get_parameters(config={}), self.num_examples["trainset"], {}
 
     def evaluate(self, parameters, config):

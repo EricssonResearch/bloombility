@@ -1,20 +1,16 @@
 import sys
 import os
 
+import math
 import torch
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader, random_split
-from torchvision.datasets import CIFAR10
 
-# navigate to the root of the project and import the bloom package
-# sys.path.insert(0, "../..")  # the root path of the project
-import bloom
-from bloom import load_data
 from bloom.load_data.download_cifar10 import CIFARTEN
 
 """
-Program to download the CIFAR-10 dataset, split in into a number och clients and
-store all train, test and evaluation datasets seperatly in files.
+Program to download the CIFAR-10 dataset, split it into a number of clients and
+store all train, test and evaluation datasets seperately in files.
 
 MOTIVATION AND PURPOSE:
 The tutorial on the Flower page downloads the data and splits it into
@@ -22,7 +18,7 @@ torch dataset objects, however, these objects needs to be distributed to
 more clients. The only solution for this is either to let the server spawn
 each client as a thread - or (which this solution entails) store each split
 into a file and make each client know which dataset to use, which can easily
-be achived by making each "client.py" take its index as a execution argument
+be achived by making each "client.py" take its index as an execution argument
 """
 
 
@@ -34,10 +30,6 @@ def load_datasets():
         [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
     )
 
-    # trainset = CIFAR10(".", train=True, download=True, transform=transform)
-    # testset = CIFAR10(".", train=False, download=True, transform=transform)
-
-    # trainset , testset = load_data.CIFARTEN.get_cifar10_datasets('.',transform=transform)
     trainset = CIFARTEN(".", train=True, download=True, transform=transform)
     testset = CIFARTEN(".", train=False, download=True, transform=transform)
 
@@ -55,7 +47,9 @@ def split_dataset(trainset, testset, num_clients, batch_size):
         batch_size: decides the batch size for when creating the DataLoader.
     """
     # Split training set into `num_clients` partitions to simulate different local datasets
-    partition_size = len(trainset) // num_clients
+    # math.floor to make it into an int -> random_split gets absolute number of images per split
+    # random_split distributes leftover images in round-robin fashion
+    partition_size = math.floor(len(trainset) // num_clients)
     lengths = [partition_size] * num_clients
     datasets = random_split(trainset, lengths, torch.Generator().manual_seed(42))
 

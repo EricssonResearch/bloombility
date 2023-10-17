@@ -1,14 +1,9 @@
 #!/usr/bin/env python
 
 import flwr as fl
-import sys
-from collections import OrderedDict
-from typing import Dict, List, Optional, Tuple
-
+from typing import List
 import numpy as np
 
-# navigate to the root of the project and import the bloom package
-import bloom
 from bloom import models
 
 # PARAMS
@@ -22,15 +17,14 @@ def get_parameters(net) -> List[np.ndarray]:
     return [val.cpu().numpy() for _, val in net.state_dict().items()]
 
 
-# Create an instance of the model and get the parameters
-params = get_parameters(models.FedAvgCNN())
-
-
 def weighted_average(metrics):
     acc = [num_examples * m["accuracy"] for num_examples, m in metrics]
     examples = [num_examples for num_examples, _ in metrics]
     return {"accuracy": sum(acc) / sum(examples)}
 
+
+# Create an instance of the model and get the parameters
+params = get_parameters(models.FedAvgCNN())
 
 # Pass parameters to the Strategy for server-side parameter initialization
 strategy = None
