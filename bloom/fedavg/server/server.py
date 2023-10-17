@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 import flwr as fl
 import sys
@@ -8,15 +8,14 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 # navigate to the root of the project and import the bloom package
-sys.path.insert(0, "../..")  # the root path of the project
 import bloom
 from bloom import models
 
 # PARAMS
 # Number of rounds of federated learning
-n_rounds = 20
+n_rounds = 3
 # Strategy  ["FedAvg", "FedAdam"]
-strat = "FedAdam"
+strat = "FedAvg"
 
 
 def get_parameters(net) -> List[np.ndarray]:
