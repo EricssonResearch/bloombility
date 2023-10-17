@@ -1,4 +1,3 @@
-import wandb  # for tracking experiments
 import torch
 import torchvision
 import torchvision.transforms as transforms
@@ -29,228 +28,125 @@ num_CIFAR_classes = len(CIFAR10_classes)
 num_FEMNIST_classes = 10
 # ^^^^ --------------do not change ---------------------------- ^^^^
 
-# Device will determine whether to run the training on GPU or CPU.
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# ----------------------------------------- classification methods ------------------------------------------------------
+# ----------------------------------------- dataset ------------------------------------------------------
+def get_preprocessed_FEMNIST() -> (
+    tuple[torch.utils.data.Dataset, torch.utils.data.Dataset]
+):
+    """ "downloads and transforms FEMNIST
 
-
-def training(trainloader, testloader, model, num_epochs, optimizer, cost, wandb_track):
+    Returns:
+        trainset: Training dataset
+        testset: Testing dataset
     """
-    trains the model on training dataset
+    transform = transforms.Compose(
+        [transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))]
+    )
+    # download FEMNIST training dataset and apply transform
+    trainset = load_data.download_femnist.FEMNIST(
+        root="./data", train=True, download=True, transform=transform
+    )
+    # download FEMNIST testing dataset and apply transform
+    testset = load_data.download_femnist.FEMNIST(
+        root="./data", train=False, download=True, transform=transform
+    )
 
-    for each epoch, do the following:
-        present each image from the training dataset to the model and save its output label.
-        With the loss funct, calculate how far off the expected result is from the actual result.
-        Propagate the difference of model weights backwards through the model to improve classification.
-        Repeat this procedure for each image in the training dataset.
+    return trainset, testset
 
-    Afterwards, call eval_results to estimate model performance on test set.
 
-    Args:
-        trainloader: the preprocessed training set in a lightweight format
-        testloader: the preprocessed testing set in a lightweight format
-        model: the NN model to be trained
-        optimizer: the optimizer to update the model with
-        cost: the loss function to calculate the difference between expected and actual result
+def get_preprocessed_CIFAR10() -> (
+    tuple[torch.utils.data.Dataset, torch.utils.data.Dataset]
+):
+    """ "downloads and transforms CIFAR10
 
+    Returns:
+        trainset: Training dataset
+        testset: Testing dataset
     """
-    # this is defined to print how many steps are remaining when training
-    total_step = len(trainloader)
+    # has three channels b/c it is RGB -> normalize on three layers
+    transform = transforms.Compose(
+        [
+            transforms.ToTensor(),
+            transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+        ]
+    )
 
-    for epoch in range(num_epochs):
-        # set to training mode
-        model.train()
-        epoch_loss = 0
-        for i, (images, labels) in enumerate(trainloader):
-            images = images.to(device)
-            labels = labels.to(device)
+    # download CIFAR10 training dataset and apply transform
+    trainset = torchvision.datasets.CIFAR10(
+        root="./data", train=True, download=True, transform=transform
+    )
 
-            # Forward pass
-            outputs = model(images)
-            loss = cost(outputs, labels)
-            epoch_loss += loss.item()
+    # download CIFAR10 testing dataset and apply transform
+    testset = torchvision.datasets.CIFAR10(
+        root="./data", train=False, download=True, transform=transform
+    )
 
-            # Backward and optimize
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-            if wandb_track:
-                # log metrics to wandb
-                wandb.log({"step_loss": loss.item()})
-
-            if (i + 1) % 400 == 0:
-                print(
-                    "Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}".format(
-                        epoch + 1, num_epochs, i + 1, total_step, loss.item()
-                    )
-                )
-
-        # set to evaluation mode
-        model.eval()
-        acc_per_epoch = eval_results(testloader, model, epoch)
-
-        if wandb_track:
-            wandb.log(
-                {
-                    "epoch_loss": epoch_loss / len(trainloader),
-                    "epoch_acc": acc_per_epoch,
-                }
-            )
-
-    if wandb_track:
-        # [optional] finish the wandb run, necessary in notebooks
-        wandb.finish()
+    return trainset, testset
 
 
-def eval_results(testloader, model, epoch):
+def transform_to_loader(
+    data: torch.utils.data.Dataset, hyper_params: dict
+) -> torch.utils.data.DataLoader:
+    """get a dataset, convert it into a torch DataLoader
+
+    Params:
+        data: dataset to convert
+        hyperparams: configuration dictionary including batch size and number of workers
+    Returns:
+        DataLoader object
     """
-    evaluates accuracy of network on train dataset
-
-    compares expected with actual output of the model
-    when presented with images from previously unseen testing set.
-    This ensures that the model does not just "know the training data results by heart",
-    but has actually found and learned patterns in the training data
-
-    Args:
-        testloader: the preprocessed testing set in a lightweight format
-        model: the pretrained(!) NN model to be evaluated
-
-    """
-    with torch.no_grad():
-        correct = 0
-        total = 0
-        for images, labels in testloader:
-            images = images.to(device)
-            labels = labels.to(device)
-            outputs = model(images)
-            _, predicted = torch.max(outputs.data, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
-
-        acc = 100 * correct / total
-
-        print(
-            "Accuracy of the network after epoch {} on the {} test images: {} %".format(
-                epoch + 1, 50000, acc
-            )
-        )
-
-        return acc
-
-
-def main(config):
-    """
-    reads config, downloads / locally loads chosen dataset, preprocesses it,
-    defines the chosen model, optimizer and loss, and starts training
-    """
-    _dataset = config.get_chosen_datasets("classification")
-    _opt = config.get_chosen_optimizers("classification")
-    _loss = config.get_chosen_loss("classification")
-    wandb_track = config.get_wand_active()
-    wandb_key = config.get_wandb_key()
-    hyper_params = config.get_hyperparams()
-
-    print("Device:", device)
-    print("Dataset: ", _dataset)
-    print("Optimizer: ", _opt)
-    print("Loss: ", _loss)
-    print("Hyper-parameters: ", hyper_params)
-
-    if wandb_track:
-        wandb.login(anonymous="never", key=wandb_key)
-        # start a new wandb run to track this script
-        wandb.init(
-            # set the wandb project where this run will be logged
-            entity="cs_team_b",
-            project="bloomnet_visualization",
-            # track hyperparameters and run metadata
-            config={
-                "learning_rate": hyper_params["learning_rate"],
-                "dataset": _dataset,
-                "optimizer": _opt,
-                "epochs": hyper_params["num_epochs"],
-                "loss": _loss,
-            },
-        )
-
-    # set up transform to normalize data
-    if _dataset == "CIFAR10":
-        # has three channels b/c it is RGB -> normalize on three layers
-        transform = transforms.Compose(
-            [
-                transforms.ToTensor(),
-                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-            ]
-        )
-    elif _dataset == "FEMNIST":
-        # has one channel b/c it is grayscale -> normalize on one layer
-        transform = transforms.Compose(
-            [transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))]
-        )
-    else:
-        print("Unrecognized dataset")
-        quit()
-
-    if _dataset == "CIFAR10":
-        # download CIFAR10 training dataset and apply transform
-        trainset = torchvision.datasets.CIFAR10(
-            root="./data", train=True, download=True, transform=transform
-        )
-
-        # download CIFAR10 testing dataset and apply transform
-        testset = torchvision.datasets.CIFAR10(
-            root="./data", train=False, download=True, transform=transform
-        )
-
-    elif _dataset == "FEMNIST":
-        # download FEMNIST training dataset and apply transform
-        trainset = load_data.download_femnist.FEMNIST(
-            root="./data", train=True, download=True, transform=transform
-        )
-        # download FEMNIST testing dataset and apply transform
-        testset = load_data.download_femnist.FEMNIST(
-            root="./data", train=False, download=True, transform=transform
-        )
-    else:
-        print("unrecognized option for dataset")
-        quit()
-
-    # torch applies multithreading, shuffling and batch learning
-    trainloader = torch.utils.data.DataLoader(
-        trainset,
+    return torch.utils.data.DataLoader(
+        data,
         batch_size=hyper_params["batch_size"],
         shuffle=True,
         num_workers=hyper_params["num_workers"],
     )
 
-    testloader = torch.utils.data.DataLoader(
-        testset,
-        batch_size=hyper_params["batch_size"],
-        shuffle=False,
-        num_workers=hyper_params["num_workers"],
-    )
 
-    # setting up model
+def get_classification_loaders(
+    _dataset: str, hyper_params: dict
+) -> tuple[torch.utils.data.DataLoader, torch.utils.data.DataLoader]:
+    """based on the chosen dataset, retrieve the data, pre-process it
+    and convert it into a DataLoader
+
+    Params:
+        _dataset: chosen dataset
+        hyper_params: dict of configurations, which has to include num_workers and batch_size
+
+    Returns:
+        trainloader: training data DataLoader object
+        testloader: testing data DataLoader object
+    """
+    # set up data
     if _dataset == "CIFAR10":
-        model = models.Networks.CNNCifar(num_CIFAR_classes).to(device)
+        trainset, testset = get_preprocessed_CIFAR10()
     elif _dataset == "FEMNIST":
-        model = models.Networks.CNNFemnist(num_FEMNIST_classes).to(device)
+        trainset, testset = get_preprocessed_FEMNIST()
     else:
-        print("did not recognized chosen NN model. Check your constants.")
+        print("Unrecognized dataset")
         quit()
 
-    # Setting the loss function
-    if _loss == "CrossEntropyLoss":
-        cost = nn.CrossEntropyLoss()
-    elif _loss == "NLLLoss":
-        cost = nn.NLLLoss()
-    else:
-        print("Unrecognized loss funct")
-        quit()
+    trainloader = transform_to_loader(trainset, hyper_params)
+    testloader = transform_to_loader(testset, hyper_params)
 
-    # Setting the optimizer with the model parameters and learning rate
+    return trainloader, testloader
+
+
+# ----------------------------------------- config -------------------------------------------------------
+
+
+def get_classification_optimizer(
+    _opt: str, model: nn.Module, hyper_params: dict
+) -> torch.optim:
+    """based on yaml config, return optimizer
+
+    Params:
+        _opt: chosen optimizer
+        model: model to optimize
+        hyper_params: yaml config dictionary with at least learning rate defined
+    Returns:
+        optimizer: configured optimizer
+    """
     if _opt == "Adam":
         optimizer = torch.optim.Adam(
             model.parameters(), lr=hyper_params["learning_rate"]
@@ -274,19 +170,83 @@ def main(config):
     else:
         print("Unrecognized optimizer!")
         quit()
-
-    # start training process
-    training(
-        trainloader,
-        testloader,
-        model,
-        hyper_params["num_epochs"],
-        optimizer,
-        cost,
-        wandb_track,
-    )
+    return optimizer
 
 
-# call main function when running the script
-if __name__ == "__main__":
-    main()
+def get_classification_model(_dataset: str, device: str) -> nn.Module:
+    """based on the chosen dataset, return correct model
+
+    Params:
+        _dataset: chosen dataset
+        device: where calculations are performed (cuda, which means gpu / cpu)
+
+    Returns:
+        model: model as defined in Networks file
+    """
+    # setting up model
+    if _dataset == "CIFAR10":
+        model = models.Networks.CNNCifar(num_CIFAR_classes).to(device)
+    elif _dataset == "FEMNIST":
+        model = models.Networks.CNNFemnist(num_FEMNIST_classes).to(device)
+    else:
+        print("did not recognized chosen NN model. Check your constants.")
+        quit()
+    return model
+
+
+def get_classification_loss(_loss: str) -> nn:
+    """based on the chosen loss, return correct loss function object
+    Params:
+        _loss: chosen loss
+
+    Returns:
+        cost: loss function object
+    """
+    # Setting the loss function
+    if _loss == "CrossEntropyLoss":
+        cost = nn.CrossEntropyLoss()
+    elif _loss == "NLLLoss":
+        cost = nn.NLLLoss()
+    else:
+        print("Unrecognized loss funct")
+        quit()
+    return cost
+
+
+# --------------------------------- accuracy ----------------------------------------------------
+
+
+def classification_accuracy(
+    testloader: torch.utils.data.DataLoader, model: nn.Module, device: str
+) -> float:
+    """
+    evaluates accuracy of network on test dataset
+
+    compares expected with actual output of the model
+    when presented with images from previously unseen testing set.
+    This ensures that the model does not just "know the training data results by heart",
+    but has actually found and learned patterns in the training data
+
+    Params:
+        testloader: the preprocessed testing set in a lightweight format
+        model: the pretrained(!) NN model to be evaluated
+        device: where calculations are performed (cuda, which means gpu / cpu)
+
+    Returns:
+        acc: accuracy of classification
+
+    """
+    with torch.no_grad():
+        correct = 0
+        total = 0
+        for images, labels in testloader:
+            images = images.to(device)
+            labels = labels.to(device)
+            outputs = model(images)
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+
+        acc = 100 * correct / total
+
+        return acc
