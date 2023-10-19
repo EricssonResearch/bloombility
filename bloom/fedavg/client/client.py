@@ -81,6 +81,30 @@ class FlowerClient(fl.client.NumPyClient):
         return float(loss), self.num_examples["testset"], {"accuracy": float(accuracy)}
 
 
+def generate_client_fn(trainloaders, valloaders, num_classes):
+    """Return a function that can be used by the VirtualClientEngine.
+
+    to spawn a FlowerClient with client id `cid`.
+    """
+
+    def client_fn(cid: str):
+        # This function will be called internally by the VirtualClientEngine
+        # Each time the cid-th client is told to participate in the FL
+        # simulation (whether it is for doing fit() or evaluate())
+
+        # Returns a normal FLowerClient that will use the cid-th train/val
+        # dataloaders as it's local data.
+        return FlowerClient(
+            trainloader=trainloaders[int(cid)],
+            vallodaer=valloaders[int(cid)],
+            num_classes=num_classes,
+        )
+
+    # return the function to spawn client
+    return client_fn
+
+
+"""
 if __name__ == "__main__":
     # Initialize and start a single client
     if len(sys.argv) == 3:
@@ -93,3 +117,4 @@ if __name__ == "__main__":
         raise Exception(
             "The program expects two arguments: <train dataset file> <test dataset file>"
         )
+"""
