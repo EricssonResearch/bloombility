@@ -3,27 +3,44 @@
 import flwr as fl
 from typing import List
 import numpy as np
-from utils import get_parameters, get_strategy, weighted_average
+from utils import get_parameters, define_strategy, weighted_average
 
 from bloom import models
 
-# PARAMS
-# Number of rounds of federated learning
-n_rounds = 3
 
-# Strategies available:  ["FedAvg", "FedAdam", "FedYogi", "FedAdagrad", "FedAvgM"]
-strat = "FedAvg"
+class FlowerServer:
+    def __init__(self, strategy: str, num_rounds: int) -> None:
+        # Create an instance of the model and get the parameters
+        self.params = get_parameters(models.FedAvgCNN())
+        # Pass parameters to the Strategy for server-side parameter initialization
+        self.strategy = define_strategy(strategy, self.params)
+        self.num_rounds = num_rounds
 
+        print("strategy: ", strategy)
+        print("Setting up flower server...")
 
-# Create an instance of the model and get the parameters
-params = get_parameters(models.FedAvgCNN())
+    def get_params(self):
+        return self.params
 
-# Pass parameters to the Strategy for server-side parameter initialization
-strategy = None
-strategy = get_strategy(strat, params)
+    def get_strategy(self):
+        return self.strategy
 
-print("strategy: ", strategy)
-print("Setting up flower server...")
-fl.server.start_server(
-    config=fl.server.ServerConfig(num_rounds=n_rounds), strategy=strategy
-)
+    def start_simulation(self, client_fn, num_clients):
+        history = fl.simulation.start_simulation(
+            client_fn=client_fn,  # a function that spawns a particular client
+            num_clients=num_clients,  # total number of clients
+            config=fl.server.ServerConfig(
+                num_rounds=self.num_rounds
+            ),  # minimal config for the server loop telling the number of rounds in FL
+            strategy=self.strategy,  # our strategy of choice
+            client_resources={
+                "num_cpus": 2,
+                "num_gpus": 0.0,
+            },  # (optional) controls the degree of parallelism of your simulation.
+            # Lower resources per client allow for more clients to run concurrently
+            # (but need to be set taking into account the compute/memory footprint of your workload)
+            # `num_cpus` is an absolute number (integer) indicating the number of threads a client should be allocated
+            # `num_gpus` is a ratio indicating the portion of gpu memory that a client needs.
+        )
+
+        return history
