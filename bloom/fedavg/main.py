@@ -1,6 +1,6 @@
 from bloom.load_data.data_distributor import DATA_DISTRIBUTOR
 from client import generate_client_fn
-from server import utils, FlowerServer
+from server import FlowerServer
 
 
 def main():
@@ -10,13 +10,13 @@ def main():
 
     # Strategies available:  ["FedAvg", "FedAdam", "FedYogi", "FedAdagrad", "FedAvgM"]
     strategy_str = "FedAvg"
-    num_clients = 5
+    num_clients = 2
 
     data_distributor = DATA_DISTRIBUTOR(num_clients)
     trainloaders = data_distributor.get_trainloaders()
-    # testloader = data_distributor.get_testloader()
+    testloader = data_distributor.get_testloader()
 
-    client_fn = generate_client_fn(trainloaders)
+    client_fn = generate_client_fn(trainloaders, testloader)
 
     server = FlowerServer(strategy=strategy_str, num_rounds=n_rounds)
     server.start_simulation(client_fn, num_clients)
