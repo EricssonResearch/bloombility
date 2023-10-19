@@ -6,7 +6,7 @@ from bloom import models
 
 
 # function to get the strategy based on the name
-def get_strategy(strat: str, params: List[np.ndarray] = None) -> fl.server.strategy:
+def define_strategy(strat: str, params: List[np.ndarray] = None) -> fl.server.strategy:
     """
         Returns the strategy function based on the name
 

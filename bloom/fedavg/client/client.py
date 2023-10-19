@@ -54,15 +54,23 @@ def test(
 
 
 class FlowerClient(fl.client.NumPyClient):
-    def __init__(self):
+    def __init__(self, trainloader, testloader):
+        # super().__init__()
         self.net = models.FedAvgCNN().to(DEVICE)
+        self.trainloader = trainloader
+        self.testloader = testloader
+
+        batch_size = 32  # <- export this to config file
+        num_trainset = len(self.trainloader) * batch_size
+        num_testset = len(self.testloader) * batch_size
+        self.num_examples = {"testset": num_trainset, "trainset": num_testset}
 
     def load_dataset(self, train_path, test_path):
         batch_size = 32  # <- export this to config file
         # Load the training dataset for this client
 
-        self.trainloader = torch.load(train_path)
-        self.testloader = torch.load(test_path)
+        # self.trainloader = torch.load(train_path)
+        # self.testloader = torch.load(test_path)
         # Calculate the total number of samples
         num_trainset = len(self.trainloader) * batch_size
         num_testset = len(self.testloader) * batch_size
@@ -88,6 +96,26 @@ class FlowerClient(fl.client.NumPyClient):
         return float(loss), self.num_examples["testset"], {"accuracy": float(accuracy)}
 
 
+def generate_client_fn(trainloaders, testloader):
+    """Return a function that can be used by the VirtualClientEngine.
+
+    to spawn a FlowerClient with client id `cid`.
+    """
+
+    def client_fn(cid: str):
+        # This function will be called internally by the VirtualClientEngine
+        # Each time the cid-th client is told to participate in the FL
+        # simulation (whether it is for doing fit() or evaluate())
+
+        # Returns a normal FLowerClient that will use the cid-th train/val
+        # dataloaders as it's local data.
+        return FlowerClient(trainloader=trainloaders[int(cid)], testloader=testloader)
+
+    # return the function to spawn client
+    return client_fn
+
+
+"""
 if __name__ == "__main__":
     # Initialize and start a single client
     if len(sys.argv) == 3:
@@ -100,3 +128,4 @@ if __name__ == "__main__":
         raise Exception(
             "The program expects two arguments: <train dataset file> <test dataset file>"
         )
+"""
