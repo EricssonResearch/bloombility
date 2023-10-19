@@ -32,14 +32,20 @@ class DATA_DISTRIBUTOR:
 
         print("Load dataset...")
         trainsets, testset = self.load_datasets()
-        trainloaders, testloader = self.split_dataset(trainsets, testset, 32)
+        self.trainloaders, self.testloader = self.split_dataset(trainsets, testset, 32)
 
         # Store all datasets
         testset_name = "test_dataset"
-        self.store_dataset(testset_name, testloader)
+        self.store_dataset(testset_name, self.testloader)
         for i in range(self.num_clients):
             trainset_name = f"train_dataset{i+1}_{self.num_clients}"
-            self.store_dataset(trainset_name, trainloaders[i])
+            self.store_dataset(trainset_name, self.trainloaders[i])
+
+    def get_trainloaders(self):
+        return self.trainloaders
+
+    def get_testloader(self):
+        return self.testloader
 
     def load_datasets(self):
         """
