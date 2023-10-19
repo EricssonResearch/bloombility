@@ -12,15 +12,15 @@ if [ $n_devices -gt 0 ]
 then
 	# Start data distributer
 	echo "Starting data distributer"
-	python3 data_distributer/data_dist.py $n_devices
+	python data_distributer/data_dist.py $n_devices
 	# Start server from "start_server" script
 	echo "Starting server"
-	python3 server/server.py &
+	python server/server.py &
 	# Start all devices
 	i=1
 	for i in `seq 1 $n_devices`; do
 		echo "Starting client$i"
-		python3 client/client.py datasets/train_dataset${i}_${n_devices}.pth datasets/test_dataset.pth &
+		python client/client.py datasets/train_dataset${i}_${n_devices}.pth datasets/test_dataset.pth &
 	done
 
 	# Enable CTRL+C to stop all background processes

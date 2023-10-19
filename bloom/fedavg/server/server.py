@@ -1,57 +1,26 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 import flwr as fl
-import sys
-from collections import OrderedDict
-from typing import Dict, List, Optional, Tuple
-
+from typing import List
 import numpy as np
+from utils import get_parameters, get_strategy, weighted_average
 
-# navigate to the root of the project and import the bloom package
-sys.path.insert(0, "../..")  # the root path of the project
-import bloom
 from bloom import models
 
 # PARAMS
 # Number of rounds of federated learning
-n_rounds = 20
-# Strategy  ["FedAvg", "FedAdam"]
-strat = "FedAdam"
+n_rounds = 3
 
-
-def get_parameters(net) -> List[np.ndarray]:
-    return [val.cpu().numpy() for _, val in net.state_dict().items()]
+# Strategies available:  ["FedAvg", "FedAdam", "FedYogi", "FedAdagrad", "FedAvgM"]
+strat = "FedAvg"
 
 
 # Create an instance of the model and get the parameters
 params = get_parameters(models.FedAvgCNN())
 
-
-def weighted_average(metrics):
-    acc = [num_examples * m["accuracy"] for num_examples, m in metrics]
-    examples = [num_examples for num_examples, _ in metrics]
-    return {"accuracy": sum(acc) / sum(examples)}
-
-
 # Pass parameters to the Strategy for server-side parameter initialization
 strategy = None
-if strat == "FedAdam":
-    strategy = fl.server.strategy.FedAdam(
-        fraction_fit=0.5,
-        fraction_evaluate=0.5,
-        min_fit_clients=3,
-        min_evaluate_clients=3,
-        min_available_clients=3,
-        initial_parameters=fl.common.ndarrays_to_parameters(params),
-        evaluate_metrics_aggregation_fn=weighted_average,
-        eta=0.01,
-        beta_1=0.9,
-        eta_l=0.1,
-    )
-elif strat == "FedAvg":
-    strategy = fl.server.strategy.FedAvg(
-        evaluate_metrics_aggregation_fn=weighted_average
-    )
+strategy = get_strategy(strat, params)
 
 print("strategy: ", strategy)
 print("Setting up flower server...")
