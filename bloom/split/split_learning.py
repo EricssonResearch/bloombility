@@ -221,3 +221,7 @@ def split_learning():
         epochs=EPOCHS,
         learning_rate=LEARNING_RATE,
     )
+
+
+if __name__ == "__main__":
+    split_learning()
