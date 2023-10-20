@@ -3,7 +3,7 @@
 import flwr as fl
 from typing import List
 import numpy as np
-from .utils import get_parameters, define_strategy, weighted_average
+from utils import get_parameters, define_strategy, weighted_average
 
 from bloom import models
 
