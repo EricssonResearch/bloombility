@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import sys
+import wandb
 from collections import OrderedDict
 import torch
 import flwr as fl
@@ -27,7 +27,7 @@ def train(
 
 
 def test(
-    net: torch.nn.Module, testloader: torch.utils.data.DataLoader
+    net: torch.nn.Module, testloader: torch.utils.data.DataLoader, wandb_track: bool
 ) -> tuple[float, float]:
     """Validate the network on the entire test set.
 
@@ -35,6 +35,7 @@ def test(
     Params:
         net: Network to be tested
         testloader: test dataset to evaluate Network with
+        wandb_track: whether or not to track experiments using wandb
     Returns:
         loss: difference between expected and actual result
         accuracy: accuracy of network on testing dataset
@@ -50,6 +51,16 @@ def test(
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
     accuracy = correct / total
+
+    # wandb logging
+    if wandb_track:
+        wandb.log(
+            {
+                "loss": loss,
+                "acc": accuracy,
+            }
+        )
+
     return loss, accuracy
 
 
@@ -92,7 +103,9 @@ class FlowerClient(fl.client.NumPyClient):
 
     def evaluate(self, parameters, config):
         self.set_parameters(parameters)
-        loss, accuracy = test(self.net, self.testloader)
+        loss, accuracy = test(
+            self.net, self.testloader, wandb_track=True
+        )  # <- export wandb_track to config file
         return float(loss), self.num_examples["testset"], {"accuracy": float(accuracy)}
 
 
