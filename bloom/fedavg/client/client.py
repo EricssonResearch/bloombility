@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
+import sys
 from collections import OrderedDict
 import torch
 import flwr as fl
-import wandb
 
 from bloom import models
 
@@ -13,13 +13,7 @@ DEVICE = torch.device("cpu")
 def train(
     net: torch.nn.Module, trainloader: torch.utils.data.DataLoader, epochs: int
 ) -> None:
-    """Train the network on the training set.
-
-    Params:
-        net: federated Network to be trained
-        trainloader: training dataset
-        epochs: number of epochs in a federated learning round
-    """
+    """Train the network on the training set."""
     criterion = torch.nn.CrossEntropyLoss()
     # optimizer = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
     optimizer = torch.optim.Adam(net.parameters())
@@ -33,7 +27,7 @@ def train(
 
 
 def test(
-    net: torch.nn.Module, testloader: torch.utils.data.DataLoader, wandb_track: bool
+    net: torch.nn.Module, testloader: torch.utils.data.DataLoader
 ) -> tuple[float, float]:
     """Validate the network on the entire test set.
 
@@ -56,15 +50,6 @@ def test(
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
     accuracy = correct / total
-
-    # wandb logging
-    if wandb_track:
-        wandb.log(
-            {
-                "loss": loss,
-                "acc": accuracy,
-            }
-        )
     return loss, accuracy
 
 
@@ -107,9 +92,7 @@ class FlowerClient(fl.client.NumPyClient):
 
     def evaluate(self, parameters, config):
         self.set_parameters(parameters)
-        loss, accuracy = test(
-            self.net, self.testloader, wandb_track=True
-        )  # <- export wandb_track to config file
+        loss, accuracy = test(self.net, self.testloader)
         return float(loss), self.num_examples["testset"], {"accuracy": float(accuracy)}
 
 
