@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-import wandb
 from collections import OrderedDict
 import torch
 import flwr as fl
@@ -57,15 +56,6 @@ def test(
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
     accuracy = correct / total
-
-    # wandb logging
-    if wandb_track:
-        wandb.log(
-            {
-                "loss": loss,
-                "acc": accuracy,
-            }
-        )
 
     return loss, accuracy
 

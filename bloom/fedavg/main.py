@@ -16,7 +16,7 @@ def main():
 
     # wandb experiments
 
-    wandb_track = True
+    wandb_track = False  # <-needs to be exported to yaml
     wandb_key = "<your key here>"
 
     if wandb_track:
@@ -43,6 +43,9 @@ def main():
 
     server = FlowerServer(strategy=strategy_str, num_rounds=n_rounds)
     server.start_simulation(client_fn, num_clients)
+
+    if wandb_track:
+        wandb.finish()
 
 
 if __name__ == "__main__":
