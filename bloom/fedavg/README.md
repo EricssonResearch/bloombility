@@ -1,21 +1,12 @@
 ## Explaination
-- This directory contains solutions for Federated Learning and Split Learning (tba).
-- These are single node solutions to use for a HPC-architecture.
+- This directory contains solutions for Federated Learning.
 
 ## Runtime instructions
 
-# For using locally on machine using a conda environment
-Requirements: A conda environment with libraries numpy, torch, torchvision installed.
-INSTRUCTIONS: To deploy on a host machine, run "./start_locally.sh". Then specify number of clients to be used for training.
-NOTE:
-- The splitted datasets are located in the "datasets" folder.
-- TODO: Federated learning parameters are currently changed manually through the server and client files. Implement a way to change these parameters through the congig file.
+Before running, make sure to follow the steps described in [CONTRIBUTING.md](/CONTRIBUTING.md) in order to set up a virtual environment and install all the necessary dependencies.
 
-# For Singularity (OUTDATED)
-- Build Singularity images by executing "./build_singularity".
-- Boot up a singularity cluster to perform Federated Learning by executing "./start_with_singularity.sh".
+# Run locally
+The entry point is `main.py`, which splits the datasets, launches a server and runs a Flower simulation with a specified number of clients.\
+To run the simulation, simply run `python main.py`.
 
-# For Docker (OUTDATED)
-- Build Docker images by executing (tba, maybe..)
-- Boot up a docker cluster to perform Federated Learning by executing "./start_with_docker.sh".
-- Stop and tear down the running docker containers by executing "./kill_docker_containers.sh"
+As of now, the configuration is fixed. In future, a configuration manager will be added.
