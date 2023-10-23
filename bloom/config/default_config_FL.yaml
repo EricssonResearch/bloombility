@@ -1,0 +1,10 @@
+server:
+  n_rounds: 3
+  strategy:
+    available: ['FedAvg']
+    chosen: ['FedAvg']
+
+client:
+  hyper-params:
+    learning_rate: 0.001
+    num_epochs: 50
