@@ -2,6 +2,9 @@ from bloom.load_data.data_distributor import DATA_DISTRIBUTOR
 from client import generate_client_fn
 from server import FlowerServer
 
+import hydra
+from hydra.core.hydra_config import HydraConfig
+
 
 def main():
     # PARAMS
