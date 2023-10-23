@@ -13,7 +13,13 @@ DEVICE = torch.device("cpu")
 def train(
     net: torch.nn.Module, trainloader: torch.utils.data.DataLoader, epochs: int
 ) -> None:
-    """Train the network on the training set."""
+    """Train the network on the training set.
+
+    Params:
+        net: federated Network to be trained
+        trainloader: training dataset
+        epochs: number of epochs in a federated learning round
+    """
     criterion = torch.nn.CrossEntropyLoss()
     # optimizer = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
     optimizer = torch.optim.Adam(net.parameters())

@@ -15,6 +15,7 @@ def main():
     num_clients = 2
 
     # wandb experiments
+
     wandb_track = True
     wandb_key = "<your key here>"
 
