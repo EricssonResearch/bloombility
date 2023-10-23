@@ -1,19 +1,22 @@
-#!/usr/bin/env python3
-import sys
+#!/usr/bin/env python
 
+import sys
 from collections import OrderedDict
 import torch
 import flwr as fl
-import torch.nn as nn
-import torch.nn.functional as F
+
+from bloom import models
 
 DEVICE = torch.device("cpu")
 
 
-def train(net, trainloader, epochs):
+def train(
+    net: torch.nn.Module, trainloader: torch.utils.data.DataLoader, epochs: int
+) -> None:
     """Train the network on the training set."""
     criterion = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+    # optimizer = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+    optimizer = torch.optim.Adam(net.parameters())
     for _ in range(epochs):
         for images, labels in trainloader:
             images, labels = images.to(DEVICE), labels.to(DEVICE)
@@ -23,8 +26,19 @@ def train(net, trainloader, epochs):
             optimizer.step()
 
 
-def test(net, testloader):
-    """Validate the network on the entire test set."""
+def test(
+    net: torch.nn.Module, testloader: torch.utils.data.DataLoader
+) -> tuple[float, float]:
+    """Validate the network on the entire test set.
+
+    Calculates classification accuracy & loss.
+    Params:
+        net: Network to be tested
+        testloader: test dataset to evaluate Network with
+    Returns:
+        loss: difference between expected and actual result
+        accuracy: accuracy of network on testing dataset
+    """
     criterion = torch.nn.CrossEntropyLoss()
     correct, total, loss = 0, 0, 0.0
     with torch.no_grad():
@@ -39,35 +53,24 @@ def test(net, testloader):
     return loss, accuracy
 
 
-class Net(nn.Module):
-    def __init__(self) -> None:
-        super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(3, 6, 5)
-        self.pool = nn.MaxPool2d(2, 2)
-        self.conv2 = nn.Conv2d(6, 16, 5)
-        self.fc1 = nn.Linear(16 * 5 * 5, 120)
-        self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, 10)
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
-        x = x.view(-1, 16 * 5 * 5)
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x
-
-
 class FlowerClient(fl.client.NumPyClient):
-    def __init__(self):
-        self.net = Net().to(DEVICE)
+    def __init__(self, trainloader, testloader):
+        # super().__init__()
+        self.net = models.FedAvgCNN().to(DEVICE)
+        self.trainloader = trainloader
+        self.testloader = testloader
+
+        batch_size = 32  # <- export this to config file
+        num_trainset = len(self.trainloader) * batch_size
+        num_testset = len(self.testloader) * batch_size
+        self.num_examples = {"testset": num_trainset, "trainset": num_testset}
 
     def load_dataset(self, train_path, test_path):
-        batch_size = 32
+        batch_size = 32  # <- export this to config file
         # Load the training dataset for this client
-        self.trainloader = torch.load(train_path)
-        self.testloader = torch.load(test_path)
+
+        # self.trainloader = torch.load(train_path)
+        # self.testloader = torch.load(test_path)
         # Calculate the total number of samples
         num_trainset = len(self.trainloader) * batch_size
         num_testset = len(self.testloader) * batch_size
@@ -84,7 +87,7 @@ class FlowerClient(fl.client.NumPyClient):
 
     def fit(self, parameters, config):
         self.set_parameters(parameters)
-        train(self.net, self.trainloader, epochs=1)
+        train(self.net, self.trainloader, epochs=2)  # <- export epochs to config file
         return self.get_parameters(config={}), self.num_examples["trainset"], {}
 
     def evaluate(self, parameters, config):
@@ -93,6 +96,25 @@ class FlowerClient(fl.client.NumPyClient):
         return float(loss), self.num_examples["testset"], {"accuracy": float(accuracy)}
 
 
+def generate_client_fn(trainloaders, testloader):
+    """Return a function that can be used by the VirtualClientEngine
+    to spawn a FlowerClient with client id `cid`.
+    """
+
+    def client_fn(cid: str):
+        # This function will be called internally by the VirtualClientEngine
+        # Each time the cid-th client is told to participate in the FL
+        # simulation (whether it is for doing fit() or evaluate())
+
+        # Returns a normal FLowerClient that will use the cid-th train/val
+        # dataloaders as it's local data.
+        return FlowerClient(trainloader=trainloaders[int(cid)], testloader=testloader)
+
+    # return the function to spawn client
+    return client_fn
+
+
+"""
 if __name__ == "__main__":
     # Initialize and start a single client
     if len(sys.argv) == 3:
@@ -105,3 +127,4 @@ if __name__ == "__main__":
         raise Exception(
             "The program expects two arguments: <train dataset file> <test dataset file>"
         )
+"""
