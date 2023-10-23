@@ -1,10 +1,8 @@
 main:
   num_clients: 5
-
 server:
   num_rounds: 3
-  strategy: 'FedAvg'
-
+  strategy: FedAvg
 client:
   hyper_params:
     learning_rate: 0.001

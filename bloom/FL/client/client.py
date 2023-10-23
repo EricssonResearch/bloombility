@@ -54,26 +54,22 @@ def test(
 
 
 class FlowerClient(fl.client.NumPyClient):
-    def __init__(self, trainloader, testloader):
+    def __init__(self, trainloader, testloader, batch_size, num_epochs):
         # super().__init__()
         self.net = models.FedAvgCNN().to(DEVICE)
         self.trainloader = trainloader
         self.testloader = testloader
+        self.batch_size = batch_size
+        self.num_epochs = num_epochs
 
-        batch_size = 32  # <- export this to config file
-        num_trainset = len(self.trainloader) * batch_size
-        num_testset = len(self.testloader) * batch_size
+        num_trainset = len(self.trainloader) * self.batch_size
+        num_testset = len(self.testloader) * self.batch_size
         self.num_examples = {"testset": num_trainset, "trainset": num_testset}
 
     def load_dataset(self, train_path, test_path):
-        batch_size = 32  # <- export this to config file
-        # Load the training dataset for this client
-
-        # self.trainloader = torch.load(train_path)
-        # self.testloader = torch.load(test_path)
         # Calculate the total number of samples
-        num_trainset = len(self.trainloader) * batch_size
-        num_testset = len(self.testloader) * batch_size
+        num_trainset = len(self.trainloader) * self.batch_size
+        num_testset = len(self.testloader) * self.batch_size
         self.num_examples = {"testset": num_trainset, "trainset": num_testset}
 
     def get_parameters(self, config=None):
@@ -87,7 +83,7 @@ class FlowerClient(fl.client.NumPyClient):
 
     def fit(self, parameters, config):
         self.set_parameters(parameters)
-        train(self.net, self.trainloader, epochs=2)  # <- export epochs to config file
+        train(self.net, self.trainloader, epochs=self.num_epochs)
         return self.get_parameters(config={}), self.num_examples["trainset"], {}
 
     def evaluate(self, parameters, config):
@@ -96,7 +92,7 @@ class FlowerClient(fl.client.NumPyClient):
         return float(loss), self.num_examples["testset"], {"accuracy": float(accuracy)}
 
 
-def generate_client_fn(trainloaders, testloader):
+def generate_client_fn(trainloaders, testloader, batch_size, num_epochs):
     """Return a function that can be used by the VirtualClientEngine
     to spawn a FlowerClient with client id `cid`.
     """
@@ -108,23 +104,12 @@ def generate_client_fn(trainloaders, testloader):
 
         # Returns a normal FLowerClient that will use the cid-th train/val
         # dataloaders as it's local data.
-        return FlowerClient(trainloader=trainloaders[int(cid)], testloader=testloader)
+        return FlowerClient(
+            trainloader=trainloaders[int(cid)],
+            testloader=testloader,
+            batch_size=batch_size,
+            num_epochs=num_epochs,
+        )
 
     # return the function to spawn client
     return client_fn
-
-
-"""
-if __name__ == "__main__":
-    # Initialize and start a single client
-    if len(sys.argv) == 3:
-        train_dataset_path = sys.argv[1]
-        test_dataset_path = sys.argv[2]
-        client = FlowerClient()
-        client.load_dataset(train_dataset_path, test_dataset_path)
-        fl.client.start_numpy_client(server_address="127.0.0.1:8080", client=client)
-    else:
-        raise Exception(
-            "The program expects two arguments: <train dataset file> <test dataset file>"
-        )
-"""
