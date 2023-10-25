@@ -8,7 +8,7 @@ import hydra
 from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig, OmegaConf
 
-config_path = os.path.join(ROOT_DIR, "config")
+config_path = os.path.join(ROOT_DIR, "config", "federated")
 
 
 @hydra.main(config_path=config_path, config_name="default_config_FL", version_base=None)

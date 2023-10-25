@@ -1,0 +1,6 @@
+main:
+  num_clients: 2
+
+server:
+  num_rounds: 4
+  strategy: 'FedAvg'
