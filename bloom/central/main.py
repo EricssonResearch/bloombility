@@ -2,6 +2,7 @@ import argparse
 import os
 import classification
 import regression
+import centralized
 import yaml
 
 from bloom import config
@@ -33,10 +34,15 @@ def main():
     args = parse_arguments()
     actual_config = config.Config(args.config)
 
+    centralized.main(actual_config, args.task)
+
+    """
     if args.task == "classification":
-        classification.main(actual_config)
-    elif args.task == "regression":
-        regression.main(actual_config)
+
+            classification.main(actual_config)
+        elif args.task == "regression":
+            regression.main(actual_config)
+        """
 
 
 if __name__ == "__main__":

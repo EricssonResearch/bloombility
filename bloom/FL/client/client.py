@@ -106,8 +106,7 @@ class FlowerClient(fl.client.NumPyClient):
 
 
 def generate_client_fn(trainloaders, testloader):
-    """Return a function that can be used by the VirtualClientEngine.
-
+    """Return a function that can be used by the VirtualClientEngine
     to spawn a FlowerClient with client id `cid`.
     """
 
