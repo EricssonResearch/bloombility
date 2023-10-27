@@ -106,7 +106,7 @@ class CIFARTEN(CIFAR10):
         else:
             return False
 
-    def get_cifar10_datasets(root, transform):
+    def get_cifar10_datasets(root, transform=None):
         """Downloads the train and test sets of CIFAR10
 
         Returns:

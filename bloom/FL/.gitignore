@@ -3,3 +3,5 @@ cifar*
 cifar/
 python3-env/
 .conda*
+datasets/
+wandb/
