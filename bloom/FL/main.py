@@ -13,6 +13,8 @@ config_path = os.path.join(ROOT_DIR, "config", "federated")
 
 @hydra.main(config_path=config_path, config_name="default_config_FL", version_base=None)
 def main(cfg: DictConfig):
+    print(config_path)
+    print(OmegaConf.to_yaml(cfg))
     # PARAMS
     # Number of rounds of federated learning
     n_rounds = cfg.server.num_rounds
