@@ -1,0 +1,4 @@
+hyper_params:
+    learning_rate: 0.001
+    num_epochs: 2
+    batch_size: 32

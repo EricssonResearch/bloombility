@@ -11,7 +11,7 @@ from omegaconf import DictConfig, OmegaConf
 config_path = os.path.join(ROOT_DIR, "config", "federated")
 
 
-@hydra.main(config_path=config_path, config_name="default_config_FL", version_base=None)
+@hydra.main(config_path=config_path, config_name="base", version_base=None)
 def main(cfg: DictConfig):
     print(config_path)
     print(OmegaConf.to_yaml(cfg))
