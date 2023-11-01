@@ -4,10 +4,9 @@ import math
 import numpy as np
 import torch
 import torchvision.transforms as transforms
-from torch.utils.data import DataLoader, random_split
-
-# navigate to the root of the project and import the bloom package
-# sys.path.insert(0, "../..")  # the root path of the project
+from torch.utils.data import DataLoader, random_split, Dataset
+from collections.abc import Iterable
+from typing import Any
 
 from .download_cifar10 import CIFARTEN
 from bloom import ROOT_DIR
@@ -26,15 +25,62 @@ be achived by making each "client.py" take its index as a execution argument
 """
 
 
+class DatasetSplit(Dataset):
+    """Implementation of PyTorch key-value based Dataset.
+    Code from https://github.com/torchfl-org/torchfl/blob/master/torchfl/datamodules/cifar.py
+    """
+
+    def __init__(self, dataset: Any, idxs: Iterable[int]) -> None:
+        """Constructor
+
+        Args:
+            - dataset (Dataset): PyTorch Dataset.
+            - idxs (List[int]): collection of indices.
+        """
+        super().__init__()
+        self.dataset: Dataset = dataset
+        self.idxs: list[int] = list(idxs)
+        all_targets: np.ndarray = (
+            np.array(dataset.targets)
+            if isinstance(dataset.targets, list)
+            else dataset.targets.numpy()
+        )
+        self.targets: np.ndarray = all_targets[self.idxs]
+
+    def __len__(self) -> int:
+        """Overriding the length method.
+
+        Returns:
+            - int: length of the collection of indices.
+        """
+        return len(self.idxs)
+
+    def __getitem__(self, index: int) -> tuple[Any, Any]:
+        """Overriding the get method.
+
+        Args:
+            - index (int): index for querying.
+
+        Returns:
+            - Tuple[Any, Any]: returns the key-value pair as a tuple.
+        """
+        image, label = self.dataset[self.idxs[index]]
+        return image, label
+
+
 class DATA_DISTRIBUTOR:
     def __init__(self, numClients):
         self.num_clients = numClients
 
         print("Load dataset...")
         trainsets, testset = self.load_datasets()
-        self.trainloaders, self.testloader = self.split_dataset(trainsets, testset, 32)
-        # vvv this is the new, random number of samples for each client vvv
+        # self.trainloaders, self.testloader = self.split_dataset(trainsets, testset, 32)
+        # vvv this is the new loader that returns random number of samples for each client vvv
         # self.trainloaders, self.testloader = self.split_random_size_datasets(trainsets, testset, 32)
+        # vvv this is the new n-class loader that creates subsets with n classes per client vvv
+        self.trainloaders, self.testloader = self.split_n_classes_datasets(
+            trainsets, testset, 32, 2
+        )
 
         # Store all datasets
         testset_name = "test_dataset"
@@ -52,6 +98,10 @@ class DATA_DISTRIBUTOR:
     def load_datasets(self):
         """
         For loading a dataset (right now the CIFAR-10 dataset).
+
+        Returns:
+            trainset: CIFAR10 object for training purposes
+            testset: CIFAR10 object for testing purposes
         """
         transform = transforms.Compose(
             [
@@ -75,6 +125,9 @@ class DATA_DISTRIBUTOR:
             trainset: a raw trainset of maximally available length
             testset: a raw testset
             batch_size: decides the batch size for when creating the DataLoader.
+        Returns:
+            trainloaders: list of DataLoader objects for training purposes
+            testloader: a single DataLoader object for testing purposes
         """
         # Split training set into `num_clients` partitions to simulate different local datasets
         # this only works if the result is integers, not floats!
@@ -99,6 +152,9 @@ class DATA_DISTRIBUTOR:
             trainset: a raw trainset of maximally available length
             testset: a raw testset
             batch_size: decides the batch size for when creating the DataLoader.
+        Returns:
+            trainloaders: list of DataLoader objects for training purposes
+            testloader: a single DataLoader object for testing purposes
         """
         # Split training set into `num_clients` partitions to simulate different local datasets
         # generate num_clients random numbers with dirichilet distribution
@@ -112,6 +168,78 @@ class DATA_DISTRIBUTOR:
             print(f"Size of dataloader {i+1}/{self.num_clients}: {len(ds)} images")
         testloader = DataLoader(testset, batch_size=batch_size)
         return trainloaders, testloader
+
+    def split_n_classes_datasets(self, trainset, testset, batch_size, niid_factor: 2):
+        """
+        Splits the trainset into subsets each containing niid_factor number of classes
+        and then puts the trainsets and testset into DataLoaders.
+        Based on num_clients, the number of clients, there are n splits of the trainset.
+        Code from https://github.com/torchfl-org/torchfl/blob/master/torchfl/datamodules/cifar.py
+
+        Comments:
+        - I assume that the number of classes has to be bigger than or equal to
+            the number of shards
+
+        Args:
+            trainset: a raw trainset of maximally available length
+            testset: a raw testset
+            batch_size: decides the batch size for when creating the DataLoader.
+            niid_factor: max number of classes held by each niid agent. Defaults to 2.
+        Returns:
+            trainloaders: list of DataLoader objects for training purposes
+            testloader: a single DataLoader object for testing purposes
+        """
+        shards: int = self.num_clients * niid_factor
+        items: int = len(trainset) // shards
+        # if num_clients == niid_factor ==  2, then idx_shards == [0, 1, 2, 3]
+        idx_shard: list[int] = list(range(shards))
+        # get every single label of the trainset as a list
+        classes: np.ndarray = (
+            np.array(trainset.targets)
+            if isinstance(trainset.targets, list)
+            else trainset.targets.numpy()
+        )
+        print("Classes:", classes)
+        # create a 2D array that assigns the index of an image in the trainset to its class label
+        idxs_labels: np.ndarray = np.vstack((np.arange(len(trainset)), classes))
+        # sort based on class label in ascending order
+        idxs_labels = idxs_labels[:, idxs_labels[1, :].argsort()]
+        # get list of indices which are sorted based on their class label
+        idxs: np.ndarray = idxs_labels[0, :]
+        # set up dict for datasetsplit. One dict entry per client.
+        distribution: dict[int, np.ndarray] = {
+            i: np.array([], dtype="int64") for i in range(self.num_clients)
+        }
+        print("Distribution:", distribution)
+
+        while idx_shard:
+            for i in range(self.num_clients):
+                rand_set: set[int] = set(
+                    np.random.choice(idx_shard, niid_factor, replace=False)
+                )
+                idx_shard = list(set(idx_shard) - rand_set)
+                for rand in rand_set:
+                    distribution[i] = np.concatenate(
+                        (
+                            distribution[i],
+                            idxs[rand * items : (rand + 1) * items],
+                        ),
+                        axis=0,
+                    )
+
+        federated: dict[int, DataLoader] = {}
+        for i in distribution:
+            federated[i] = DataLoader(
+                DatasetSplit(self.cifar_train_full, distribution[i]),
+                batch_size=batch_size,
+                shuffle=True,
+                num_workers=os.cpu_count() or 0,
+            )
+
+        # return federated
+
+        # for testing whether stuff breaks: see if it reaches this
+        return self.split_dataset(trainset, testset, batch_size)
 
     def store_dataset(self, dataset_name, dataloader):
         """
