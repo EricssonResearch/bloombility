@@ -1,10 +1,10 @@
-import sys
 import os
 
+import math
+import numpy as np
 import torch
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader, random_split
-from torchvision.datasets import CIFAR10
 
 # navigate to the root of the project and import the bloom package
 # sys.path.insert(0, "../..")  # the root path of the project
@@ -33,6 +33,8 @@ class DATA_DISTRIBUTOR:
         print("Load dataset...")
         trainsets, testset = self.load_datasets()
         self.trainloaders, self.testloader = self.split_dataset(trainsets, testset, 32)
+        # vvv this is the new, random number of samples for each client vvv
+        # self.trainloaders, self.testloader = self.split_random_size_datasets(trainsets, testset, 32)
 
         # Store all datasets
         testset_name = "test_dataset"
@@ -58,10 +60,6 @@ class DATA_DISTRIBUTOR:
             ]
         )
 
-        # trainset = CIFAR10(".", train=True, download=True, transform=transform)
-        # testset = CIFAR10(".", train=False, download=True, transform=transform)
-
-        # trainset , testset = load_data.CIFARTEN.get_cifar10_datasets('.',transform=transform)
         trainset = CIFARTEN(".", train=True, download=True, transform=transform)
         testset = CIFARTEN(".", train=False, download=True, transform=transform)
 
@@ -69,15 +67,17 @@ class DATA_DISTRIBUTOR:
 
     def split_dataset(self, trainset, testset, batch_size):
         """
-        Splits the trainset and then puts the trainset and dataset into DataLoaders.
+        Splits the trainset into equally sized subsets
+        and then puts the trainsets and testset into DataLoaders.
+        Based on num_clients, the number of clients, there are n splits of the trainset.
 
         Args:
-            trainset: a raw trainset
+            trainset: a raw trainset of maximally available length
             testset: a raw testset
-            num_clients: the number of clients will decide the n of splits of the trainset
             batch_size: decides the batch size for when creating the DataLoader.
         """
         # Split training set into `num_clients` partitions to simulate different local datasets
+        # this only works if the result is integers, not floats!
         partition_size = len(trainset) // self.num_clients
         lengths = [partition_size] * self.num_clients
         datasets = random_split(trainset, lengths, torch.Generator().manual_seed(42))
@@ -86,6 +86,30 @@ class DATA_DISTRIBUTOR:
         trainloaders = []
         for ds in datasets:
             trainloaders.append(DataLoader(ds, batch_size=batch_size, shuffle=True))
+        testloader = DataLoader(testset, batch_size=batch_size)
+        return trainloaders, testloader
+
+    def split_random_size_datasets(self, trainset, testset, batch_size):
+        """
+        Splits the trainset into randomly sized subsets
+        and then puts the trainsets and testset into DataLoaders.
+        Based on num_clients, the number of clients, there are n splits of the trainset.
+
+        Args:
+            trainset: a raw trainset of maximally available length
+            testset: a raw testset
+            batch_size: decides the batch size for when creating the DataLoader.
+        """
+        # Split training set into `num_clients` partitions to simulate different local datasets
+        # generate num_clients random numbers with dirichilet distribution
+        rand_nums = np.random.dirichlet(np.ones(self.num_clients))
+        datasets = random_split(trainset, rand_nums, torch.Generator().manual_seed(42))
+
+        # Split into partitions and put int DataLoader as with iid
+        trainloaders = []
+        for i, ds in enumerate(datasets):
+            trainloaders.append(DataLoader(ds, batch_size=batch_size, shuffle=True))
+            print(f"Size of dataloader {i+1}/{self.num_clients}: {len(ds)} images")
         testloader = DataLoader(testset, batch_size=batch_size)
         return trainloaders, testloader
 
