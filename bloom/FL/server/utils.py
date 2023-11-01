@@ -1,8 +1,11 @@
 import flwr as fl
 from typing import List
 import numpy as np
+import wandb
 
 from bloom import models
+
+IS_WANDB_TRACK = False  # <-needs to be exported to yaml
 
 
 # function to get the strategy based on the name
@@ -104,4 +107,12 @@ def weighted_average(metrics: dict) -> dict:
     """
     acc = [num_examples * m["accuracy"] for num_examples, m in metrics]
     examples = [num_examples for num_examples, _ in metrics]
+
+    if IS_WANDB_TRACK:
+        # wandb logging
+        wandb.log(
+            {
+                "acc": sum(acc) / sum(examples),
+            }
+        )
     return {"accuracy": sum(acc) / sum(examples)}

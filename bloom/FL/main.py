@@ -1,3 +1,5 @@
+import wandb
+
 from bloom.load_data.data_distributor import DATA_DISTRIBUTOR
 from client import generate_client_fn
 from server import FlowerServer
@@ -25,6 +27,26 @@ def main(cfg: DictConfig):
     num_epochs = cfg.client.hyper_params.num_epochs
 
     data_distributor = DATA_DISTRIBUTOR(cfg.main.num_clients)
+    # wandb experiments
+    wandb_track = False  # <-needs to be exported to yaml
+    wandb_key = "<your key here>"
+
+    if wandb_track:
+        wandb.login(anonymous="never", key=wandb_key)
+        # start a new wandb run to track this script
+        wandb.init(
+            # set the wandb project where this run will be logged
+            entity="cs_team_b",
+            project="bloomnet_visualization",
+            # track hyperparameters and run metadata
+            config={
+                "method": "federated",
+                "n_rounds": n_rounds,
+                "strategy": strategy_str,
+                "clients": num_clients,
+            },
+        )
+
     trainloaders = data_distributor.get_trainloaders()
     testloader = data_distributor.get_testloader()
 
@@ -32,6 +54,9 @@ def main(cfg: DictConfig):
 
     server = FlowerServer(strategy=strategy, num_rounds=n_rounds)
     server.start_simulation(client_fn, cfg.main.num_clients)
+
+    if wandb_track:
+        wandb.finish()
 
 
 if __name__ == "__main__":
