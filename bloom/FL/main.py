@@ -26,7 +26,9 @@ def main(cfg: DictConfig):
     batch_size = cfg.client.hyper_params.batch_size
     num_epochs = cfg.client.hyper_params.num_epochs
 
-    data_distributor = DATA_DISTRIBUTOR(cfg.main.num_clients)
+    num_clients = cfg.main.num_clients
+
+    data_distributor = DATA_DISTRIBUTOR(num_clients)
     # wandb experiments
     wandb_track = False  # <-needs to be exported to yaml
     wandb_key = "<your key here>"
@@ -42,7 +44,7 @@ def main(cfg: DictConfig):
             config={
                 "method": "federated",
                 "n_rounds": n_rounds,
-                "strategy": strategy_str,
+                "strategy": strategy,
                 "clients": num_clients,
             },
         )
