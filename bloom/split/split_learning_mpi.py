@@ -1,6 +1,7 @@
+from mpi4py import MPI
 from copy import deepcopy
 from typing import List
-from mpi4py import MPI
+
 import torch
 from torch import nn
 from torch.nn import Module
@@ -100,6 +101,7 @@ def split_train_step(
     head_optimizer,
     train_data: DataLoader,
     test_data: DataLoader,
+    comm,
 ):
     total_loss = 0
 
@@ -133,76 +135,109 @@ def split_train_step(
     return total_loss / len(train_data)
 
 
-# Init MPI
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()
-size = comm.Get_size()
+def split_nn(
+    worker_models: List[Module],
+    head_model: Module,
+    head_loss_fn,
+    training_sets: List[DataLoader],
+    testing_sets: List[DataLoader],
+    epochs: int,
+    learning_rate: float,
+    comm,
+):
+    assert len(worker_models) == len(training_sets)
 
-# number of worker models and number of epochs
-num_workers = 4
-epochs = 5
+    optimizers = []
 
-# worker model for each process
-worker_models = [WorkerModel(input_layer_size=784) for _ in range(num_workers)]
+    for worker_model in worker_models:
+        optimizers.append(SGD(worker_model.parameters(), lr=learning_rate))
 
-# Init a head model
-head_model = HeadModel()
+    head_optimizer = SGD(head_model.parameters(), lr=learning_rate)
 
-learning_rate = 0.01
+    history = {}
 
-# Split the data into multiple subsets
-train_loader, test_loader = get_mnist(batch_size=32)
+    for i in range(len(worker_models)):
+        history[i] = {"train_acc": [], "test_acc": [], "train_loss": []}
 
-train_set = []
-for train_features, train_labels in train_loader:
-    train_set.append((train_features, train_labels))
+    rank = comm.Get_rank()
+    size = comm.Get_size()
 
-test_set = []
-for test_features, test_labels in test_loader:
-    test_set.append((test_features, test_labels))
+    if rank != 0:
+        for e in range(epochs):
+            train_loss = split_train_step(
+                worker_model=worker_models[rank - 1],
+                head_model=head_model,
+                loss_fn=head_loss_fn,
+                worker_optimizer=optimizers[rank - 1],
+                head_optimizer=head_optimizer,
+                train_data=training_sets[rank - 1],
+                test_data=testing_sets[rank - 1],
+                comm=comm,
+            )
 
-train_split = int(len(train_set) / size)
-test_split = int(len(test_set) / size)
+            history[rank - 1]["train_loss"].append(train_loss)
+            print(f"Worker {i} Epoch {e} - Training loss: {train_loss}")
+        comm.send(history, dest=0)
+    else:
+        for pid in range(1, size):
+            history = comm.recv(source=pid)
+            # Todo : log details
 
-# train_set = train_set[rank * train_split:(rank + 1) * train_split]
-# test_set = test_set[rank * test_split:(rank + 1) * test_split]
-
-# Initialize the head loss function
-head_loss_fn = CrossEntropyLoss()
-
-# Create an optimizer for each worker model
-optimizers = [SGD(worker.parameters(), lr=learning_rate) for worker in worker_models]
-
-head_optimizer = SGD(head_model.parameters(), lr=learning_rate)
-
-# Training loop
-for e in range(epochs):
-    for i, worker_model in enumerate(worker_models):
-        train_loader = DataLoader(train_set, batch_size=32, shuffle=True)
-        test_loader = DataLoader(test_set, batch_size=32, shuffle=True)
-
-        train_loss = split_train_step(
-            worker_model=worker_model,
-            head_model=head_model,
-            loss_fn=head_loss_fn,
-            worker_optimizer=optimizers[i],
-            head_optimizer=head_optimizer,
-            train_data=train_loader,
-            test_data=test_loader,
+    if rank != 0:
+        print(
+            f"Worker {rank} acc: {accuracy(worker_models[rank-1], head_model, testing_sets[rank-1])}"
         )
 
-        # Gather training losses from all processes
-        all_train_losses = comm.gather(train_loss, root=0)
+    return history
 
-        if rank == 0:
-            avg_train_loss = sum(all_train_losses) / len(all_train_losses)
-            print(f"Epoch {e} - Average Training loss: {avg_train_loss}")
 
-    # Synchronize all processes before moving to the next epoch
-    comm.Barrier()
+def split_learning():
+    # Init MPI
+    comm = MPI.COMM_WORLD
+    # rank = comm.Get_rank()
+    size = comm.Get_size()
 
-# Evaluate and print test accuracy for each process
-for i, worker_model in enumerate(worker_models):
-    test_loader = DataLoader(test_set, batch_size=32, shuffle=True)
-    test_acc = accuracy(worker_model, head_model, test_loader)
-    print(f"Process {rank} - Worker {i} Test Accuracy: {test_acc}")
+    # split learning in iid setting
+    BATCH_SIZE = 32
+    EPOCHS = 5
+    LEARNING_RATE = 0.01
+
+    num_clients = size - 1
+
+    train_loader, test_loader = get_mnist(batch_size=BATCH_SIZE)
+
+    worker_models = [WorkerModel(input_layer_size=784) for _ in range(num_clients)]
+
+    head_model = HeadModel()
+
+    # split data in two
+    train_set = []
+    for train_features, train_labels in train_loader:
+        train_set.append((train_features, train_labels))
+
+    test_set = []
+    for test_features, test_labels in test_loader:
+        test_set.append((test_features, test_labels))
+
+    train_split = int(len(train_set) / 2)
+    test_split = int(len(test_set) / 2)
+
+    train_dls = [train_set[0:train_split], train_set[train_split:]]
+    test_dls = [test_set[0:test_split], test_set[test_split:]]
+
+    head_loss_fn = CrossEntropyLoss()
+
+    split_nn(
+        worker_models=worker_models,
+        head_model=head_model,
+        head_loss_fn=head_loss_fn,
+        training_sets=train_dls,
+        testing_sets=test_dls,
+        epochs=EPOCHS,
+        learning_rate=LEARNING_RATE,
+        comm=comm,
+    )
+
+
+if __name__ == "__main__":
+    split_learning()
