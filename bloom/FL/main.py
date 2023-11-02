@@ -30,8 +30,8 @@ def main(cfg: DictConfig):
 
     data_distributor = DATA_DISTRIBUTOR(num_clients)
     # wandb experiments
-    wandb_track = False  # <-needs to be exported to yaml
-    wandb_key = "<your key here>"
+    wandb_track = cfg.main.wandb_active
+    wandb_key = cfg.main.wandb_key
 
     if wandb_track:
         wandb.login(anonymous="never", key=wandb_key)
@@ -55,7 +55,9 @@ def main(cfg: DictConfig):
     client_fn = generate_client_fn(trainloaders, testloader, batch_size, num_epochs)
 
     server = FlowerServer(strategy=strategy, num_rounds=n_rounds)
-    server.start_simulation(client_fn, cfg.main.num_clients)
+    server.start_simulation(
+        client_fn, cfg.main.num_clients, cfg.client.num_cpu, cfg.client.num_gpu
+    )
 
     if wandb_track:
         wandb.finish()

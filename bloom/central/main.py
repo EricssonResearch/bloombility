@@ -6,43 +6,18 @@ import centralized
 import yaml
 
 from bloom import config
+from bloom import ROOT_DIR
+
+import hydra
+from hydra.core.hydra_config import HydraConfig
+from omegaconf import DictConfig, OmegaConf
+
+config_path = os.path.join(ROOT_DIR, "config", "central")
 
 
-def parse_arguments():
-    parser = argparse.ArgumentParser(description="Run centralized CNN.")
-
-    parser.add_argument(
-        "-t",
-        "--task",
-        default="classification",
-        choices=["classification", "regression"],
-        required=True,
-        dest="task",
-    )
-    parser.add_argument(
-        "-c",
-        "--config",
-        default=config.Config.DEFAULT_CONFIG,
-        required=False,
-        dest="config",
-    )
-
-    return parser.parse_args()
-
-
-def main():
-    args = parse_arguments()
-    actual_config = config.Config(args.config)
-
-    centralized.main(actual_config, args.task)
-
-    """
-    if args.task == "classification":
-
-            classification.main(actual_config)
-        elif args.task == "regression":
-            regression.main(actual_config)
-        """
+@hydra.main(config_path=config_path, config_name="base", version_base=None)
+def main(cfg: DictConfig):
+    centralized.main(cfg)
 
 
 if __name__ == "__main__":
