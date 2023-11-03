@@ -5,7 +5,7 @@ A simple centralized CNN for a classification task using the FEMNIST and CIFAR10
 ## Running Instructions
 
 ```console
-python main.py -t "classification"
+python main.py
 ```
 
 ## Configuration Management
