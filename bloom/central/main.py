@@ -5,7 +5,6 @@ import regression
 import centralized
 import yaml
 
-from bloom import config
 from bloom import ROOT_DIR
 
 import hydra
