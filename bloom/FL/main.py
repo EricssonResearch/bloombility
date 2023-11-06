@@ -28,7 +28,9 @@ def main(cfg: DictConfig):
 
     num_clients = cfg.main.num_clients
 
-    data_distributor = DATA_DISTRIBUTOR(num_clients)
+    data_split = cfg.main.data_split_chosen
+
+    data_distributor = DATA_DISTRIBUTOR(num_clients, data_split)
     # wandb experiments
     wandb_track = cfg.main.wandb_active
     wandb_key = cfg.main.wandb_key

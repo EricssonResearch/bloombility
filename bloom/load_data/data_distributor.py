@@ -69,21 +69,26 @@ class DatasetSplit(Dataset):
 
 
 class DATA_DISTRIBUTOR:
-    def __init__(self, numClients):
+    def __init__(self, numClients, data_split="iid"):
         self.num_clients = numClients
 
         print("Load dataset...")
         trainsets, testset = self.load_datasets()
-        self.trainloaders, self.testloader = self.split_dataset(trainsets, testset, 32)
 
-        # vvv this is the new loader that returns random number of samples for each client vvv
-        # self.trainloaders, self.testloader = self.split_random_size_datasets(trainsets, testset, 32)
+        if data_split == "iid":
+            self.trainloaders, self.testloader = self.split_dataset(
+                trainsets, testset, 32
+            )
+        if data_split == "num_samples":
+            # vvv this is the new loader that returns random number of samples for each client vvv
+            self.trainloaders, self.testloader = self.split_random_size_datasets(
+                trainsets, testset, 32
+            )
         # vvv this is the new n-class loader that creates subsets with n classes per client vvv
-        # self.trainloaders, self.testloader = self.split_n_classes_datasets(
-        #     trainsets, testset, 32, 2
-        # )
-
-        # ^^ export these to yaml ^^
+        if data_split == "num_classes":
+            self.trainloaders, self.testloader = self.split_n_classes_datasets(
+                trainsets, testset, 32, 2
+            )
 
         # Store all datasets
         testset_name = "test_dataset"
