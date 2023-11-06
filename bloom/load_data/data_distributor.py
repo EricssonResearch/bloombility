@@ -74,13 +74,16 @@ class DATA_DISTRIBUTOR:
 
         print("Load dataset...")
         trainsets, testset = self.load_datasets()
-        # self.trainloaders, self.testloader = self.split_dataset(trainsets, testset, 32)
+        self.trainloaders, self.testloader = self.split_dataset(trainsets, testset, 32)
+
         # vvv this is the new loader that returns random number of samples for each client vvv
         # self.trainloaders, self.testloader = self.split_random_size_datasets(trainsets, testset, 32)
         # vvv this is the new n-class loader that creates subsets with n classes per client vvv
-        self.trainloaders, self.testloader = self.split_n_classes_datasets(
-            trainsets, testset, 32, 2
-        )
+        # self.trainloaders, self.testloader = self.split_n_classes_datasets(
+        #     trainsets, testset, 32, 2
+        # )
+
+        # ^^ export these to yaml ^^
 
         # Store all datasets
         testset_name = "test_dataset"
@@ -177,8 +180,16 @@ class DATA_DISTRIBUTOR:
         Code from https://github.com/torchfl-org/torchfl/blob/master/torchfl/datamodules/cifar.py
 
         Comments:
-        - I assume that the number of classes has to be bigger than or equal to
+        - this assumes that the number of classes has to be bigger than or equal to
             the number of shards
+        - this assumes that the number of images per class in the original dataset is equal to one another
+        - this assumes that the number of images per class is dividable by the shards
+            - e.g. 10 images in a class, 2 classes, 5 shards
+            - otherwise, the start and end indices become unaligned with the class index boundaries
+
+        To modify:
+        - split the 2D-array that has the index of the image assigned to the class along the class boundaries
+        - replace the generation of ranges to take the number of images per class into account?
 
         Args:
             trainset: a raw trainset of maximally available length
@@ -190,6 +201,7 @@ class DATA_DISTRIBUTOR:
             testloader: a single DataLoader object for testing purposes
         """
         shards: int = self.num_clients * niid_factor
+        # number of images per shard
         items: int = len(trainset) // shards
         # if num_clients == niid_factor ==  2, then idx_shards == [0, 1, 2, 3]
         idx_shard: list[int] = list(range(shards))
@@ -199,7 +211,7 @@ class DATA_DISTRIBUTOR:
             if isinstance(trainset.targets, list)
             else trainset.targets.numpy()
         )
-        print("Classes:", classes)
+
         # create a 2D array that assigns the index of an image in the trainset to its class label
         idxs_labels: np.ndarray = np.vstack((np.arange(len(trainset)), classes))
         # sort based on class label in ascending order
@@ -210,15 +222,20 @@ class DATA_DISTRIBUTOR:
         distribution: dict[int, np.ndarray] = {
             i: np.array([], dtype="int64") for i in range(self.num_clients)
         }
-        print("Distribution:", distribution)
 
         while idx_shard:
             for i in range(self.num_clients):
+                # parameters: 1D array to draw from, size of output shape
+                #  If the given shape is, e.g., (m, n, k), then m * n * k samples are drawn
+                # here: niid_factor is single int
                 rand_set: set[int] = set(
                     np.random.choice(idx_shard, niid_factor, replace=False)
                 )
+                # remove possible shards
                 idx_shard = list(set(idx_shard) - rand_set)
                 for rand in rand_set:
+                    # append the new shard to the original trainloader for a client:
+                    # number of items in a shard, starting and ending at index given by shard
                     distribution[i] = np.concatenate(
                         (
                             distribution[i],
@@ -227,19 +244,20 @@ class DATA_DISTRIBUTOR:
                         axis=0,
                     )
 
-        federated: dict[int, DataLoader] = {}
+        # make dataloaders out of it
+        trainloader_list = []
         for i in distribution:
-            federated[i] = DataLoader(
-                DatasetSplit(self.cifar_train_full, distribution[i]),
-                batch_size=batch_size,
-                shuffle=True,
-                num_workers=os.cpu_count() or 0,
+            trainloader_list.append(
+                DataLoader(
+                    DatasetSplit(trainset, distribution[i]),
+                    batch_size=batch_size,
+                    shuffle=True,
+                )
             )
 
-        # return federated
+        testloader = DataLoader(testset, batch_size=batch_size)
 
-        # for testing whether stuff breaks: see if it reaches this
-        return self.split_dataset(trainset, testset, batch_size)
+        return trainloader_list, testloader
 
     def store_dataset(self, dataset_name, dataloader):
         """
