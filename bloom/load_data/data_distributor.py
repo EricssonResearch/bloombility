@@ -268,10 +268,11 @@ class DATA_DISTRIBUTOR:
         """
         n_train = len(dataloader.dataset)
         print(f"Store dataset: {dataset_name} (size:{n_train}) ...")
+        dataset_folder = os.path.join(ROOT_DIR, "load_data", "datasets")
         # Write dataset
-        dataset_filename = os.path.join(
-            ROOT_DIR, "load_data", "datasets", f"{dataset_name}.pth"
-        )
+        dataset_filename = os.path.join(dataset_folder, f"{dataset_name}.pth")
+        if not os.path.exists(dataset_folder):
+            os.makedirs(dataset_folder)
         if os.path.exists(dataset_filename):
             print(f"{dataset_name} already exists!")
         else:
