@@ -6,10 +6,11 @@ import tqdm
 from bloom import config
 import classification as clas
 import regression as regr
+from omegaconf import DictConfig, OmegaConf
 
 
 def wandb_setup(
-    wandb_key: str, _dataset: str, _opt: str, _loss: str, hyper_params: dict
+    wandb_key: str, _dataset: str, _opt: str, _loss: str, hyper_params: DictConfig
 ) -> None:
     """logs in to wandb and sets up experiment metadata.
 
@@ -31,19 +32,17 @@ def wandb_setup(
         project="bloomnet_visualization",
         # track hyperparameters and run metadata
         config={
-            "learning_rate": hyper_params["learning_rate"],
+            "learning_rate": hyper_params.learning_rate,
             "dataset": _dataset,
             "optimizer": _opt,
-            "epochs": hyper_params["num_epochs"],
+            "epochs": hyper_params.num_epochs,
             "loss": _loss,
         },
     )
     return
 
 
-def setup_config(
-    config: config.Config, task: str
-) -> tuple[str, str, str, dict, str, bool]:
+def setup_config(cfg: DictConfig, task: str) -> tuple[str, str, str, dict, str, bool]:
     """
     reads config and starts wandb if tracking is activated
 
@@ -58,12 +57,22 @@ def setup_config(
         wandb_track: whether or not to track and visualize experiment performance with wandb
 
     """
-    _dataset = config.get_chosen_datasets(task)
-    _opt = config.get_chosen_optimizers(task)
-    _loss = config.get_chosen_loss(task)
-    wandb_track = config.get_wand_active()
-    wandb_key = config.get_wandb_key()
-    hyper_params = config.get_hyperparams()
+    _dataset = ""
+    _opt = ""
+    _loss = ""
+
+    if task == "classification":
+        _dataset = cfg.main.datasets.classification.chosen
+        _opt = cfg.main.optimizers.classification.chosen
+        _loss = cfg.main.loss_functions.classification.chosen
+    else:
+        _dataset = cfg.main.datasets.regression.chosen
+        _opt = cfg.main.optimizers.regression.chosen
+        _loss = cfg.main.loss_functions.regression.chosen
+
+    wandb_track = cfg.main.wandb.active_tracking
+    wandb_key = cfg.main.wandb.login_key
+    hyper_params = cfg.main.hyper_params
 
     # Device will determine whether to run the training on GPU or CPU.
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -185,7 +194,7 @@ def training(
         wandb.finish()
 
 
-def main(config: config.Config, task: str) -> None:
+def main(cfg: DictConfig) -> None:
     """based on config and chosen task, sets up dataset, model, loss and optimizer
         and trains and tests model
 
@@ -193,11 +202,9 @@ def main(config: config.Config, task: str) -> None:
         config: config class that mirrors the config yaml file
         task: the chosen learning task, either classification or regression
     """
-
+    task = cfg.main.task.chosen
     # read config and initiate wand
-    _dataset, _opt, _loss, hyper_params, device, wandb_track = setup_config(
-        config, task
-    )
+    _dataset, _opt, _loss, hyper_params, device, wandb_track = setup_config(cfg, task)
 
     # initiate data and config
     if task == "classification":

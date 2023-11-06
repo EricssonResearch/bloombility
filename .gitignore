@@ -161,3 +161,8 @@ cython_debug/
 
 # VS Code
 launch.json
+
+
+cifar*
+cifar/
+outputs/
