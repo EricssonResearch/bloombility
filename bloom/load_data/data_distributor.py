@@ -69,7 +69,7 @@ class DatasetSplit(Dataset):
 
 
 class DATA_DISTRIBUTOR:
-    def __init__(self, numClients, data_split="iid"):
+    def __init__(self, numClients, data_split_config, data_split="iid"):
         self.num_clients = numClients
 
         print("Load dataset...")
@@ -80,14 +80,16 @@ class DATA_DISTRIBUTOR:
                 trainsets, testset, 32
             )
         if data_split == "num_samples":
+            alpha = data_split_config.dirichlet_alpha
             # vvv this is the new loader that returns random number of samples for each client vvv
             self.trainloaders, self.testloader = self.split_random_size_datasets(
-                trainsets, testset, 32
+                trainsets, testset, 32, alpha
             )
         # vvv this is the new n-class loader that creates subsets with n classes per client vvv
         if data_split == "num_classes":
+            niid_factor = data_split_config.niid_factor
             self.trainloaders, self.testloader = self.split_n_classes_datasets(
-                trainsets, testset, 32, 2
+                trainsets, testset, 32, niid_factor
             )
 
         # Store all datasets
@@ -150,7 +152,7 @@ class DATA_DISTRIBUTOR:
         testloader = DataLoader(testset, batch_size=batch_size)
         return trainloaders, testloader
 
-    def split_random_size_datasets(self, trainset, testset, batch_size):
+    def split_random_size_datasets(self, trainset, testset, batch_size, alpha):
         """
         Splits the trainset into randomly sized subsets
         and then puts the trainsets and testset into DataLoaders.
@@ -160,13 +162,14 @@ class DATA_DISTRIBUTOR:
             trainset: a raw trainset of maximally available length
             testset: a raw testset
             batch_size: decides the batch size for when creating the DataLoader.
+            alpha: unbalancing of the dirichilet distribution
         Returns:
             trainloaders: list of DataLoader objects for training purposes
             testloader: a single DataLoader object for testing purposes
         """
         # Split training set into `num_clients` partitions to simulate different local datasets
         # generate num_clients random numbers with dirichilet distribution
-        rand_nums = np.random.dirichlet(np.ones(self.num_clients))
+        rand_nums = np.random.dirichlet(np.ones(self.num_clients) * alpha)
         datasets = random_split(trainset, rand_nums, torch.Generator().manual_seed(42))
 
         # Split into partitions and put int DataLoader as with iid
