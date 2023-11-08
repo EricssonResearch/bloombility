@@ -25,6 +25,9 @@ class WorkerModelRemote(CNNWorkerModel):
         self.model = CNNWorkerModel(input_layer_size)
         self.optimizer = SGD(self.model.parameters(), lr=self.lr)
 
+    def get_optimizer(self):
+        return self.optimizer
+
     def split_train_step(
         self,
         head_model: Module,
@@ -43,7 +46,7 @@ class WorkerModelRemote(CNNWorkerModel):
             # forward propagation worker model
             worker_optimizer.zero_grad()
 
-            cut_layer_tensor = self.model.remote(features)
+            cut_layer_tensor = self.model(features)
 
             client_output = cut_layer_tensor.clone().detach().requires_grad_(True)
 
@@ -64,3 +67,21 @@ class WorkerModelRemote(CNNWorkerModel):
             total_loss += loss.item()
 
         return total_loss / len(train_data)
+
+    # def accuracy(model: Module, head_model: Module, test_loader: DataLoader):
+    #     model.eval.remote()
+    #     head_model.eval()
+
+    #     correct_test = 0
+    #     total_test_labels = 0
+    #     for input_data, labels in test_loader:
+    #         split_layer_tensor = ray.get(model.remote(input_data))
+    #         logits = head_model(split_layer_tensor)
+
+    #         _, predictions = logits.max(1)
+
+    #         correct_test += predictions.eq(labels).sum().item()
+    #         total_test_labels += len(labels)
+
+    #     test_acc = correct_test / total_test_labels
+    #     return test_acc
