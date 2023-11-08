@@ -35,13 +35,13 @@ LEARNING_RATE = 0.01
 
 @ray.remote
 def accuracy(model: Module, head_model: Module, test_loader: DataLoader):
-    model.eval()
+    model.remote.eval()
     head_model.eval()
 
     correct_test = 0
     total_test_labels = 0
     for input_data, labels in test_loader:
-        split_layer_tensor = model(input_data)
+        split_layer_tensor = model.remote(input_data)
         logits = head_model(split_layer_tensor)
 
         _, predictions = logits.max(1)
