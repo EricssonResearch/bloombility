@@ -121,3 +121,27 @@ class FedAvgCNN(nn.Module):
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
         return x
+
+
+# Model from Kosta's tutorial on split learning
+class CNNHeadModel(nn.Module):
+    def __init__(self, input_layer_size=32, num_labels=10):
+        super().__init__()
+        self.linear_relu_stack = nn.Sequential(nn.Linear(input_layer_size, num_labels))
+
+    def forward(self, x):
+        output = self.linear_relu_stack(x)
+        return output
+
+
+class CNNWorkerModel(nn.Module):
+    def __init__(self, input_layer_size):
+        super().__init__()
+        cut_layer_size = 32
+        self.linear_relu_stack = nn.Sequential(
+            nn.Linear(input_layer_size, cut_layer_size), nn.ReLU(), nn.Dropout(0.2)
+        )
+
+    def forward(self, x):
+        output = self.linear_relu_stack(x)
+        return output
