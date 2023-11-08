@@ -25,6 +25,7 @@ class HeadModelLocal(CNNHeadModel):
         self.model = CNNHeadModel(input_layer_size, num_labels)
         self.lr = lr
         self.optimizer = SGD(self.model.parameters(), lr=0.01)
+        self.loss_fn = CrossEntropyLoss()
 
     def train_head_step(
         self,

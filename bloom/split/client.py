@@ -27,7 +27,6 @@ class WorkerModelRemote(CNNWorkerModel):
 
     def split_train_step(
         self,
-        worker_model: Module,
         head_model: Module,
         loss_fn,
         worker_optimizer,
@@ -37,14 +36,14 @@ class WorkerModelRemote(CNNWorkerModel):
     ):
         total_loss = 0
 
-        worker_model.train()
+        self.model.train()
         head_model.train()
 
         for features, labels in train_data:
             # forward propagation worker model
             worker_optimizer.zero_grad()
 
-            cut_layer_tensor = worker_model.remote(features)
+            cut_layer_tensor = self.model.remote(features)
 
             client_output = cut_layer_tensor.clone().detach().requires_grad_(True)
 
