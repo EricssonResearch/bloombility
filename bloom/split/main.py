@@ -20,68 +20,55 @@ import argparse
 import os
 import numpy as np
 from .client import WorkerModelRemote
+from .server import HeadModelLocal
 
 # Set MAX number of clients
 MAX_CLIENTS = 10
 
 
 @ray.remote
-def train_head_step(
+def split_nn(
+    worker_models: List[Module],
     head_model: Module,
-    input_tensor: torch.Tensor,
-    labels: torch.Tensor,
-    loss_fn,
-    head_optimizer,
+    head_loss_fn,
+    training_sets: List[DataLoader],
+    testing_sets: List[DataLoader],
+    epochs: int,
+    learning_rate: float,
 ):
-    head_optimizer.zero_grad()
-    output = head_model(input_tensor)
-    loss = loss_fn(output, labels)
-    loss.backward()
-    head_optimizer.step()
+    assert len(worker_models) == len(training_sets)
 
-    return input_tensor.grad, loss
+    optimizers = []
 
+    for worker_model in worker_models:
+        optimizers.append(SGD(worker_model.parameters(), lr=learning_rate))
 
-@ray.remote
-def split_train_step(
-    worker_model: Module,
-    head_model: Module,
-    loss_fn,
-    worker_optimizer,
-    head_optimizer,
-    train_data: DataLoader,
-    test_data: DataLoader,
-):
-    total_loss = 0
+    head_optimizer = SGD(head_model.parameters(), lr=learning_rate)
 
-    worker_model.train()
-    head_model.train()
+    history = {}
 
-    for features, labels in train_data:
-        # forward propagation worker model
-        worker_optimizer.zero_grad()
+    for i in range(len(worker_models)):
+        history[i] = {"train_acc": [], "test_acc": [], "train_loss": []}
 
-        cut_layer_tensor = worker_model.remote(features)
+    for i, worker_model in enumerate(worker_models):
+        for e in range(epochs):
+            train_loss = worker_model.split_train_step.remote(
+                worker_model=worker_model,
+                head_model=head_model,
+                loss_fn=head_loss_fn,
+                worker_optimizer=optimizers[i],
+                head_optimizer=head_optimizer,
+                train_data=training_sets[i],
+                test_data=testing_sets[i],
+            )
 
-        client_output = cut_layer_tensor.clone().detach().requires_grad_(True)
+            history[i]["train_loss"].append(train_loss)
+            print(f"Worker {i} Epoch {e} - Training loss: {train_loss}")
 
-        # perform forward propagation on the head model and then we receive
-        # the gradients to do backward propagation
-        grads, loss = train_head_step.remote(
-            head_model=head_model,
-            input_tensor=client_output,
-            labels=labels,
-            loss_fn=loss_fn,
-            head_optimizer=head_optimizer,
-        )
+    # print(f"Worker 1 acc: {accuracy(worker_models[0], head_model, testing_sets[0])}")
+    # print(f"Worker 2 acc: {accuracy(worker_models[1], head_model, testing_sets[1])}")
 
-        # backward propagation on the worker node
-        cut_layer_tensor.backward.remote(grads)
-        worker_optimizer.step()
-
-        total_loss += loss.item()
-
-    return total_loss / len(train_data)
+    return history
 
 
 # Use argparse to get the arguments from the command line
@@ -101,8 +88,14 @@ if data_distributor is None:
     trainloaders = data_distributor.get_trainloaders()
     testloader = data_distributor.get_testloader()
 
+
+# Shut down Ray if it has already been initialized
+if ray.is_initialized():
+    ray.shutdown()
 # Instantiate the server and models
 ray_info = ray.init(num_cpus=num_clients)
+cluster_resources = ray.cluster_resources()
+print(f"Ray initialized with resources: {cluster_resources}")
 
 # use python to start the server from commandline
 os.system("start --head --resources='{\"server\": 1}'")
@@ -111,6 +104,6 @@ os.system(
     f"start --address={ray_info['redis_address']} --resources='{'worker': {num_clients}}'"
 )
 
-head_model = CNNHeadModel()
+head_model = HeadModelLocal()
 input_layer_size = 784
 worker_models = [WorkerModelRemote.remote(input_layer_size) for _ in range(num_clients)]
