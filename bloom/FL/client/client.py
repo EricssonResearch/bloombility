@@ -11,7 +11,7 @@ from bloom import models
 # if you want to have metrics reported to wandb
 # for each client in the federated learning
 CLIENT_REPORTING = False
-wandb_key = "<key here>"
+wandb_key = "<key>"
 
 DEVICE = torch.device("cpu")
 
@@ -27,12 +27,15 @@ def wandb_login() -> None:
         # set the wandb project where this run will be logged
         entity="cs_team_b",
         # keep separate from other runs by logging to different project
-        project="client_reporting_fn",
+        project="non_iid_client_reporting_fn_2",
     )
 
 
 def train(
-    net: torch.nn.Module, trainloader: torch.utils.data.DataLoader, epochs: int
+    net: torch.nn.Module,
+    trainloader: torch.utils.data.DataLoader,
+    epochs: int,
+    count: int,
 ) -> None:
     """Train the network on the training set.
 
@@ -41,10 +44,11 @@ def train(
         trainloader: training dataset
         epochs: number of epochs in a federated learning round
     """
+
     net.train()  # set to train mode
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(net.parameters())
-    for _ in range(epochs):
+    for i in range(epochs):
         for images, labels in trainloader:
             images, labels = images.to(DEVICE), labels.to(DEVICE)
             optimizer.zero_grad()
@@ -52,10 +56,18 @@ def train(
             loss.backward()
             optimizer.step()
 
-    train_loss, train_acc = test(net, trainloader)  # get loss and acc on train set
+        train_loss, train_acc = test(net, trainloader)  # get loss and acc on train set
 
-    if CLIENT_REPORTING:
-        wandb.log({"train_loss": train_loss, "train_accuracy": train_acc})
+        if CLIENT_REPORTING:
+            wandb.log(
+                {
+                    "dataset_len": len(trainloader),
+                    "train_loss": train_loss,
+                    "train_accuracy": train_acc,
+                    "epoch": i,
+                    "traincounter": count,
+                }
+            )
 
     # it can be accessed through the fit function
     # needs an aggregate_fn definition for the strategies
@@ -108,6 +120,8 @@ class FlowerClient(fl.client.NumPyClient):
         self.testloader = testloader
         self.batch_size = batch_size
         self.num_epochs = num_epochs
+        self.train_counter = 0
+        self.id = random.randint(0, 100)
 
         num_trainset = len(self.trainloader) * self.batch_size
         num_testset = len(self.testloader) * self.batch_size
@@ -132,8 +146,12 @@ class FlowerClient(fl.client.NumPyClient):
 
     def fit(self, parameters, config):
         self.set_parameters(parameters)
+        self.train_counter += 1
+        print(f"Train_counter for client {self.id}: {self.train_counter}")
 
-        results = train(self.net, self.trainloader, epochs=self.num_epochs)
+        results = train(
+            self.net, self.trainloader, epochs=self.num_epochs, count=self.train_counter
+        )
         return self.get_parameters(config={}), self.num_examples["trainset"], results
 
     def evaluate(self, parameters, config):

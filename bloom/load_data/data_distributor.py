@@ -70,6 +70,22 @@ class DatasetSplit(Dataset):
 
 class DATA_DISTRIBUTOR:
     def __init__(self, numClients, data_split_config, data_split="iid"):
+        """
+        Process:
+        - Loads entire CIFAR10 trainset and testset
+        - then splits the trainset into multiple trainloaders
+
+        - Stores it if it does not already exists
+            - Note: naming is train_dataset4_4 and thus does not account for different split types
+
+
+
+        Params:
+            numClients: number of clients. Indicates how many training datasets need to be created
+            data_split_config: class object with hydra configuration
+            data_split: what type of iid or non-iid data split shall be applied
+
+        """
         self.num_clients = numClients
 
         print("Load dataset...")
@@ -85,6 +101,7 @@ class DATA_DISTRIBUTOR:
             self.trainloaders, self.testloader = self.split_random_size_datasets(
                 trainsets, testset, 32, alpha
             )
+
         # vvv this is the new n-class loader that creates subsets with n classes per client vvv
         if data_split == "num_classes":
             niid_factor = data_split_config.niid_factor
@@ -96,7 +113,7 @@ class DATA_DISTRIBUTOR:
         testset_name = "test_dataset"
         self.store_dataset(testset_name, self.testloader)
         for i in range(self.num_clients):
-            trainset_name = f"train_dataset{i+1}_{self.num_clients}"
+            trainset_name = f"{data_split}_train_dataset{i+1}_{self.num_clients}"
             self.store_dataset(trainset_name, self.trainloaders[i])
 
     def get_trainloaders(self):

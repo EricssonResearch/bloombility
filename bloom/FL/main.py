@@ -52,7 +52,24 @@ def main(cfg: DictConfig):
             },
         )
 
+    wandb_key = "<key>"
+
+    if wandb.run is None:
+        wandb.login(anonymous="never", key=wandb_key)
+        # start a new wandb run to track this script
+        wandb.init(
+            # set the wandb project where this run will be logged
+            entity="cs_team_b",
+            # keep separate from other runs by logging to different project
+            project="non_iid_client_reporting_fn",
+        )
+
     trainloaders = data_distributor.get_trainloaders()
+    print("Amount of loaders:", len(trainloaders))
+
+    for trainloader in trainloaders:
+        wandb.log({"trainloader_len": len(trainloader)})
+
     testloader = data_distributor.get_testloader()
 
     client_fn = generate_client_fn(trainloaders, testloader, batch_size, num_epochs)
