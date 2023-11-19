@@ -69,7 +69,7 @@ class DatasetSplit(Dataset):
 
 
 class DATA_DISTRIBUTOR:
-    def __init__(self, numClients, data_split_config, data_split="iid"):
+    def __init__(self, numClients, data_split_config=None, data_split="iid"):
         """
         Process:
         - Loads entire CIFAR10 trainset and testset
@@ -95,19 +95,23 @@ class DATA_DISTRIBUTOR:
             self.trainloaders, self.testloader = self.split_dataset(
                 trainsets, testset, 32
             )
-        if data_split == "num_samples":
+        elif data_split == "num_samples" and data_split_config is not None:
             alpha = data_split_config.dirichlet_alpha
             # vvv this is the new loader that returns random number of samples for each client vvv
             self.trainloaders, self.testloader = self.split_random_size_datasets(
                 trainsets, testset, 32, alpha
             )
-
         # vvv this is the new n-class loader that creates subsets with n classes per client vvv
-        if data_split == "num_classes":
+        elif data_split == "num_classes" and data_split_config is not None:
             niid_factor = data_split_config.niid_factor
             self.trainloaders, self.testloader = self.split_n_classes_datasets(
                 trainsets, testset, 32, niid_factor
             )
+        elif (
+            data_split == ("num_classes" or "num_samples") and data_split_config is None
+        ):
+            print("Please provide a data split config!")
+            quit()
 
         # Store all datasets
         testset_name = "test_dataset"
