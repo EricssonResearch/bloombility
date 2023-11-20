@@ -1,7 +1,7 @@
 import wandb
 
 from bloom.load_data.data_distributor import DATA_DISTRIBUTOR
-from client import generate_client_fn
+from client import FlowerClient
 from server import FlowerServer
 from bloom import ROOT_DIR
 
@@ -9,13 +9,13 @@ import os
 import hydra
 from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig, OmegaConf
+import flwr as fl
 
 config_path = os.path.join(ROOT_DIR, "config", "federated")
 
 
 @hydra.main(config_path=config_path, config_name="base", version_base=None)
 def main(cfg: DictConfig):
-    print(config_path)
     print(OmegaConf.to_yaml(cfg))
     # PARAMS
     # Number of rounds of federated learning
@@ -52,12 +52,12 @@ def main(cfg: DictConfig):
     trainloaders = data_distributor.get_trainloaders()
     testloader = data_distributor.get_testloader()
 
-    client_fn = generate_client_fn(trainloaders, testloader, batch_size, num_epochs)
-
     server = FlowerServer(strategy=strategy, num_rounds=n_rounds)
-    server.start_simulation(
-        client_fn, cfg.main.num_clients, cfg.client.num_cpu, cfg.client.num_gpu
-    )
+    server.start_server()
+
+    for i in range(num_clients):
+        client = FlowerClient(trainloaders, testloader, batch_size, num_epochs)
+        fl.client.start_numpy_client(server_address="127.0.0.1:8080", client=client)
 
     if wandb_track:
         wandb.finish()

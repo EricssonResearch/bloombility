@@ -1,1 +1,1 @@
-from .client import generate_client_fn, FlowerClient
+from .client import FlowerClient

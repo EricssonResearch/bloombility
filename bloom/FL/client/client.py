@@ -71,6 +71,7 @@ class FlowerClient(fl.client.NumPyClient):
         num_trainset = len(self.trainloader) * self.batch_size
         num_testset = len(self.testloader) * self.batch_size
         self.num_examples = {"testset": num_trainset, "trainset": num_testset}
+        print("flower client created..")
 
     def load_dataset(self, train_path, test_path):
         # Calculate the total number of samples
@@ -97,25 +98,5 @@ class FlowerClient(fl.client.NumPyClient):
         loss, accuracy = test(self.net, self.testloader)
         return float(loss), self.num_examples["testset"], {"accuracy": float(accuracy)}
 
-
-def generate_client_fn(trainloaders, testloader, batch_size, num_epochs):
-    """Return a function that can be used by the VirtualClientEngine
-    to spawn a FlowerClient with client id `cid`.
-    """
-
-    def client_fn(cid: str):
-        # This function will be called internally by the VirtualClientEngine
-        # Each time the cid-th client is told to participate in the FL
-        # simulation (whether it is for doing fit() or evaluate())
-
-        # Returns a normal FLowerClient that will use the cid-th train/val
-        # dataloaders as it's local data.
-        return FlowerClient(
-            trainloader=trainloaders[int(cid)],
-            testloader=testloader,
-            batch_size=batch_size,
-            num_epochs=num_epochs,
-        )
-
-    # return the function to spawn client
-    return client_fn
+    def start_client(self):
+        fl.client.start_numpy_client(server_address="127.0.0.1:8080", client=self)
