@@ -20,9 +20,9 @@ import numpy as np
 
 
 class HeadModelLocal(CNNHeadModel):
-    def __init__(self, input_layer_size=32, num_labels=10, lr=0.01):
-        super().__init__(input_layer_size, num_labels)
-        self.model = CNNHeadModel(input_layer_size, num_labels)
+    def __init__(self, lr=0.01):
+        super().__init__()
+        self.model = CNNHeadModel()
         self.lr = lr
         self.optimizer = SGD(self.model.parameters(), lr=0.01)
         self.loss_fn = CrossEntropyLoss()
@@ -38,7 +38,7 @@ class HeadModelLocal(CNNHeadModel):
         head_optimizer.zero_grad()
         output = head_model(input_tensor)
         loss = loss_fn(output, labels)
-        loss.backward()
+        loss.backward(retain_graph=True)
         head_optimizer.step()
 
         return input_tensor.grad, loss

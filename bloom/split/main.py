@@ -108,7 +108,7 @@ def split_nn(
                 worker_optimizer=worker_model.get_optimizer.remote(),
                 head_optimizer=head_model.optimizer,
                 train_data=training_sets[i],
-                test_data=testing_sets[i],
+                test_data=testing_sets,
             )
             train_loss = ray.get(train_loss)
 
@@ -117,7 +117,7 @@ def split_nn(
 
     for i, worker_model in enumerate(worker_models):
         print(
-            f"Worker {i} acc: {ray.get(accuracy.remote(worker_model, head_model, testing_sets[i]))}"
+            f"Worker {i} acc: {ray.get(accuracy.remote(worker_model, head_model, testing_sets))}"
         )
 
     return history
@@ -137,26 +137,26 @@ def main():
             "Number of clients must be less than or equal to ", MAX_CLIENTS
         )
 
-    # data_distributor = None
-    # if data_distributor is None:
-    #     data_distributor = DATA_DISTRIBUTOR(num_clients)
-    #     trainloaders = data_distributor.get_trainloaders()
-    #     testloader = data_distributor.get_testloader()
-    train_loader, test_loader = get_mnist(batch_size=32)
-    # split data in two
-    train_set = []
-    for train_features, train_labels in train_loader:
-        train_set.append((train_features, train_labels))
+    data_distributor = None
+    if data_distributor is None:
+        data_distributor = DATA_DISTRIBUTOR(num_clients)
+        trainloaders = data_distributor.get_trainloaders()
+        testloader = data_distributor.get_testloader()
+    # train_loader, test_loader = get_mnist(batch_size=32)
+    # # split data in two
+    # train_set = []
+    # for train_features, train_labels in train_loader:
+    #     train_set.append((train_features, train_labels))
 
-    test_set = []
-    for test_features, test_labels in test_loader:
-        test_set.append((test_features, test_labels))
+    # test_set = []
+    # for test_features, test_labels in test_loader:
+    #     test_set.append((test_features, test_labels))
 
-    train_split = int(len(train_set) / 2)
-    test_split = int(len(test_set) / 2)
+    # train_split = int(len(train_set) / 2)
+    # test_split = int(len(test_set) / 2)
 
-    trainloaders = [train_set[0:train_split], train_set[train_split:]]
-    testloaders = [test_set[0:test_split], test_set[test_split:]]
+    # trainloaders = [train_set[0:train_split], train_set[train_split:]]
+    # testloaders = [test_set[0:test_split], test_set[test_split:]]
 
     # Shut down Ray if it has already been initialized
     if ray.is_initialized():
@@ -181,7 +181,7 @@ def main():
     head_model = HeadModelLocal()
 
     # Create Ray actors for the worker models and set to ray namesapece
-    input_layer_size = 784
+    input_layer_size = 3072
     worker_models = [
         WorkerModelRemote.options(
             name=f"worker_{i}", namespace="split_learning"
@@ -194,7 +194,7 @@ def main():
         head_model=head_model,
         head_loss_fn=head_model.loss_fn,
         training_sets=trainloaders,
-        testing_sets=testloaders,
+        testing_sets=testloader,
         epochs=EPOCHS,
         learning_rate=LEARNING_RATE,
     )

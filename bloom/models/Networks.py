@@ -125,23 +125,35 @@ class FedAvgCNN(nn.Module):
 
 # Model from Kosta's tutorial on split learning
 class CNNHeadModel(nn.Module):
-    def __init__(self, input_layer_size=32, num_labels=10):
+    def __init__(self):
         super().__init__()
-        self.linear_relu_stack = nn.Sequential(nn.Linear(input_layer_size, num_labels))
+        self.fc1 = nn.Linear(16 * 5 * 5, 120)
+        self.fc2 = nn.Linear(120, 84)
+        self.fc3 = nn.Linear(84, 10)
+        # self.linear_relu_stack = nn.Sequential(nn.Linear(input_layer_size, num_labels))
 
     def forward(self, x):
-        output = self.linear_relu_stack(x)
+        x = x.view(-1, 16 * 5 * 5)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        output = self.fc3(x)
+        # output = self.linear_relu_stack(x)
         return output
 
 
 class CNNWorkerModel(nn.Module):
     def __init__(self, input_layer_size):
         super().__init__()
-        cut_layer_size = 32
-        self.linear_relu_stack = nn.Sequential(
-            nn.Linear(input_layer_size, cut_layer_size), nn.ReLU(), nn.Dropout(0.2)
-        )
+        self.conv1 = nn.Conv2d(3, 6, 5)
+        self.pool = nn.MaxPool2d(2, 2)
+        self.conv2 = nn.Conv2d(6, 16, 5)
+        # cut_layer_size = 32
+        # self.linear_relu_stack = nn.Sequential(
+        #     nn.Linear(input_layer_size, cut_layer_size), nn.ReLU(), nn.Dropout(0.2)
+        # )
 
     def forward(self, x):
-        output = self.linear_relu_stack(x)
+        x = self.pool(F.relu(self.conv1(x)))
+        output = self.pool(F.relu(self.conv2(x)))
+        # output = self.linear_relu_stack(x)
         return output
