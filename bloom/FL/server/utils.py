@@ -3,7 +3,6 @@ from typing import List
 import numpy as np
 import wandb
 
-from bloom import models
 
 IS_WANDB_TRACK = False  # <-needs to be exported to yaml
 

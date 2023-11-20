@@ -3,33 +3,27 @@
 import flwr as fl
 from typing import List
 import numpy as np
-from .utils import get_parameters, define_strategy, weighted_average
+from bloom.FL.server.utils import get_parameters, define_strategy
 import wandb
 from bloom import models
 from bloom import ROOT_DIR
-import os
-import hydra
-from hydra.core.hydra_config import HydraConfig
-from omegaconf import DictConfig, OmegaConf
+import sys
 
 
-config_path = os.path.join(ROOT_DIR, "config", "federated")
-
-
-@hydra.main(config_path=config_path, config_name="base", version_base=None)
-def main(cfg: DictConfig):
-    print(OmegaConf.to_yaml(cfg))
-
+def main():
     # PARAMS
     # Number of rounds of federated learning
-    n_rounds = cfg.server.num_rounds
+    n_rounds = int(sys.argv[1])
 
     # Strategies available:  ["FedAvg", "FedAdam", "FedYogi", "FedAdagrad", "FedAvgM"]
-    strategy = cfg.server.strategy
+    strategy = sys.argv[2]
     # wandb experiments
-    wandb_track = cfg.main.wandb_active
-    wandb_key = cfg.main.wandb_key
-    num_clients = cfg.main.num_clients
+    wandb_track = False
+    if sys.argv[3] == "True":
+        wandb_track = True
+
+    wandb_key = sys.argv[4]
+    num_clients = int(sys.argv[5])
 
     if wandb_track:
         wandb.login(anonymous="never", key=wandb_key)

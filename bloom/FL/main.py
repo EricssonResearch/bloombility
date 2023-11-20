@@ -18,6 +18,13 @@ def main(cfg: DictConfig):
     print(OmegaConf.to_yaml(cfg))
     # PARAMS
     # Number of rounds of federated learning
+    n_rounds = cfg.server.num_rounds
+
+    # Strategies available:  ["FedAvg", "FedAdam", "FedYogi", "FedAdagrad", "FedAvgM"]
+    strategy = cfg.server.strategy
+    # wandb experiments
+    wandb_track = bool(cfg.main.wandb_active)
+    wandb_key = cfg.main.wandb_key
 
     # Strategies available:  ["FedAvg", "FedAdam", "FedYogi", "FedAdagrad", "FedAvgM"]
     batch_size = cfg.client.hyper_params.batch_size
@@ -25,16 +32,33 @@ def main(cfg: DictConfig):
 
     num_clients = cfg.main.num_clients
 
-    data_distributor = DATA_DISTRIBUTOR(num_clients)
+    DATA_DISTRIBUTOR(num_clients)
 
-    trainloaders = data_distributor.get_trainloaders()
-    testloader = data_distributor.get_testloader()
+    subprocess.Popen(
+        [
+            "server/server.py",
+            f"{n_rounds}",
+            f"{strategy}",
+            f"{wandb_track}",
+            f"{wandb_key}",
+            f"{num_clients}",
+        ]
+    )
 
-    subprocess.Popen(["./server/server.py"])
-
-    for i in range(num_clients):
-        client = FlowerClient(trainloaders, testloader, batch_size, num_epochs)
-        fl.client.start_numpy_client(server_address="127.0.0.1:8080", client=client)
+    for i in range(1, num_clients + 1):
+        trainloader_str = (
+            f"{ROOT_DIR}/load_data/datasets/train_dataset{i}_{num_clients}.pth"
+        )
+        testloader_str = f"{ROOT_DIR}/load_data/datasets/test_dataset.pth"
+        subprocess.Popen(
+            [
+                "client/client.py",
+                f"{batch_size}",
+                f"{num_epochs}",
+                trainloader_str,
+                testloader_str,
+            ]
+        )
 
 
 if __name__ == "__main__":

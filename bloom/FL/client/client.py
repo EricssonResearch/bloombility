@@ -5,8 +5,24 @@ import torch
 import flwr as fl
 
 from bloom import models
+from bloom import ROOT_DIR
+import os
+import sys
+from bloom.load_data.data_distributor import DATA_DISTRIBUTOR
 
 DEVICE = torch.device("cpu")
+
+
+def main():
+    batch_size = int(sys.argv[1])
+    num_epochs = int(sys.argv[2])
+
+    train_dataset_path = sys.argv[3]
+    test_dataset_path = sys.argv[4]
+
+    client = FlowerClient(batch_size, num_epochs)
+    client.load_dataset(train_dataset_path, test_dataset_path)
+    fl.client.start_numpy_client(server_address="127.0.0.1:8080", client=client)
 
 
 def train(
@@ -60,20 +76,19 @@ def test(
 
 
 class FlowerClient(fl.client.NumPyClient):
-    def __init__(self, trainloader, testloader, batch_size, num_epochs):
+    def __init__(self, batch_size, num_epochs):
         # super().__init__()
         self.net = models.FedAvgCNN().to(DEVICE)
-        self.trainloader = trainloader
-        self.testloader = testloader
+
         self.batch_size = batch_size
         self.num_epochs = num_epochs
 
-        num_trainset = len(self.trainloader) * self.batch_size
-        num_testset = len(self.testloader) * self.batch_size
-        self.num_examples = {"testset": num_trainset, "trainset": num_testset}
         print("flower client created..")
 
     def load_dataset(self, train_path, test_path):
+        self.trainloader = torch.load(train_path)
+        self.testloader = torch.load(test_path)
+
         # Calculate the total number of samples
         num_trainset = len(self.trainloader) * self.batch_size
         num_testset = len(self.testloader) * self.batch_size
@@ -100,3 +115,7 @@ class FlowerClient(fl.client.NumPyClient):
 
     def start_client(self):
         fl.client.start_numpy_client(server_address="127.0.0.1:8080", client=self)
+
+
+if __name__ == "__main__":
+    main()
