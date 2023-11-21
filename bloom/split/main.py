@@ -17,6 +17,7 @@ from bloom.models import CNNWorkerModel, CNNHeadModel
 from bloom.load_data.data_distributor import DATA_DISTRIBUTOR
 import ray
 import argparse
+import wandb
 import os
 import numpy as np
 from client import WorkerModelRemote
@@ -31,6 +32,10 @@ EPOCHS = 5
 
 # Learning rate for training
 LEARNING_RATE = 0.01
+
+
+wandb_track_global = False  # <-needs to be exported to yaml
+wandb_key = "<key>"
 
 
 def get_mnist(batch_size: int):
@@ -101,6 +106,8 @@ def split_nn(
         history[i] = {"train_acc": [], "test_acc": [], "train_loss": []}
 
     for i, worker_model in enumerate(worker_models):
+        # put client reporting login here
+
         for e in range(epochs):
             train_loss = worker_model.split_train_step.remote(
                 head_model=head_model,
@@ -115,15 +122,41 @@ def split_nn(
             history[i]["train_loss"].append(train_loss)
             print(f"Worker {i} Epoch {e} - Training loss: {train_loss}")
 
+    data = []
+    accuracy = 0
     for i, worker_model in enumerate(worker_models):
-        print(
-            f"Worker {i} acc: {ray.get(accuracy.remote(worker_model, head_model, testing_sets))}"
+        accuracy = ray.get(accuracy.remote(worker_model, head_model, testing_sets))
+        print(f"Worker {i} acc: {accuracy}")
+        if wandb_track_global:
+            data.append([f"worker_{i}", accuracy])
+
+    print(data)
+
+    if wandb_track_global:
+        table = wandb.Table(data=data, columns=["worker", "accuracy"])
+        wandb.log(
+            {
+                "worker_accuracy_bar_chart": wandb.plot.bar(
+                    table, "worker", "accuracy", title="Accuracy by worker"
+                )
+            }
         )
 
     return history
 
 
 def main():
+    if wandb_track_global:
+        wandb.login(anonymous="never", key=wandb_key)
+        # start a new wandb run to track this script
+        wandb.init(
+            # set the wandb project where this run will be logged
+            entity="cs_team_b",
+            project="split_reporting",
+            # track hyperparameters and run metadata
+            config={"method": "split", "epochs": EPOCHS},
+        )
+
     # Use argparse to get the arguments from the command line
     parser = argparse.ArgumentParser()
     parser.add_argument("--num-clients", type=int, default=2, help="number of clients")
@@ -198,6 +231,9 @@ def main():
         epochs=EPOCHS,
         learning_rate=LEARNING_RATE,
     )
+
+    if wandb_track_global:
+        wandb.finish()
 
 
 if __name__ == "__main__":
