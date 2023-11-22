@@ -33,7 +33,7 @@ EPOCHS = 5
 # Learning rate for training
 LEARNING_RATE = 0.01
 
-
+wandb_track_client = False  # <-needs to be exported to yaml
 wandb_track_global = False  # <-needs to be exported to yaml
 wandb_key = "<key>"
 
@@ -106,7 +106,17 @@ def split_nn(
         history[i] = {"train_acc": [], "test_acc": [], "train_loss": []}
 
     for i, worker_model in enumerate(worker_models):
-        # put client reporting login here
+        # client reporting login
+        if wandb_track_client:
+            if wandb.run is None:
+                wandb.login(anonymous="never", key=wandb_key)
+                # start a new wandb run to track this script
+            wandb.init(
+                # set the wandb project where this run will be logged
+                entity="cs_team_b",
+                # keep separate from other runs by logging to different project
+                project="client_reporting_split",
+            )
 
         for e in range(epochs):
             train_loss = worker_model.split_train_step.remote(
@@ -122,15 +132,16 @@ def split_nn(
             history[i]["train_loss"].append(train_loss)
             print(f"Worker {i} Epoch {e} - Training loss: {train_loss}")
 
-    data = []
-    accuracy = 0
-    for i, worker_model in enumerate(worker_models):
-        accuracy = ray.get(accuracy.remote(worker_model, head_model, testing_sets))
-        print(f"Worker {i} acc: {accuracy}")
-        if wandb_track_global:
-            data.append([f"worker_{i}", accuracy])
+            if wandb_track_client:
+                wandb.log({"training loss": train_loss})
 
-    print(data)
+    data = []
+    acc = 0
+    for i, worker_model in enumerate(worker_models):
+        acc = ray.get(accuracy.remote(worker_model, head_model, testing_sets))
+        print(f"Worker {i} acc: {acc}")
+        if wandb_track_global:
+            data.append([f"worker_{i}", acc])
 
     if wandb_track_global:
         table = wandb.Table(data=data, columns=["worker", "accuracy"])
@@ -141,6 +152,9 @@ def split_nn(
                 )
             }
         )
+
+    if wandb_track_client:
+        wandb.finish()
 
     return history
 
