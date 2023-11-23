@@ -11,6 +11,8 @@ from omegaconf import DictConfig, OmegaConf
 import flwr as fl
 
 config_path = os.path.join(ROOT_DIR, "config", "federated")
+server_path = os.path.join(ROOT_DIR, "FL", "server")
+client_path = os.path.join(ROOT_DIR, "FL", "client")
 
 
 @hydra.main(config_path=config_path, config_name="base", version_base=None)
@@ -38,7 +40,7 @@ def main(cfg: DictConfig):
 
     subprocess.Popen(
         [
-            "server/server.py",
+            os.path.join(server_path, "server.py"),
             f"{n_rounds}",
             f"{strategy}",
             f"{wandb_track}",
@@ -55,7 +57,7 @@ def main(cfg: DictConfig):
         testloader_str = f"{ROOT_DIR}/load_data/datasets/test_dataset.pth"
         subprocess.Popen(
             [
-                "client/client.py",
+                os.path.join(client_path, "client.py"),
                 f"{batch_size}",
                 f"{num_epochs}",
                 trainloader_str,
