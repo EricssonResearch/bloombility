@@ -34,6 +34,8 @@ def main(cfg: DictConfig):
 
     DATA_DISTRIBUTOR(num_clients)
 
+    subprocess.run(["chmod", "+x", "server/server.py"], check=True)
+
     subprocess.Popen(
         [
             "server/server.py",
@@ -45,6 +47,7 @@ def main(cfg: DictConfig):
         ]
     )
 
+    subprocess.run(["chmod", "+x", "client/client.py"], check=True)
     for i in range(1, num_clients + 1):
         trainloader_str = (
             f"{ROOT_DIR}/load_data/datasets/train_dataset{i}_{num_clients}.pth"

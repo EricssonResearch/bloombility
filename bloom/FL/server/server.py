@@ -41,7 +41,9 @@ def main():
             },
         )
 
-    server = FlowerServer(strategy=strategy, num_rounds=n_rounds)
+    server = FlowerServer(
+        strategy=strategy, num_rounds=n_rounds, wandb_track=wandb_track
+    )
     server.start_server()
 
     if wandb_track:
@@ -49,11 +51,11 @@ def main():
 
 
 class FlowerServer:
-    def __init__(self, strategy: str, num_rounds: int) -> None:
+    def __init__(self, strategy: str, num_rounds: int, wandb_track: bool) -> None:
         # Create an instance of the model and get the parameters
         self.params = get_parameters(models.FedAvgCNN())
         # Pass parameters to the Strategy for server-side parameter initialization
-        self.strategy = define_strategy(strategy, self.params)
+        self.strategy = define_strategy(strategy, wandb_track, self.params)
         self.num_rounds = num_rounds
 
         print("strategy: ", strategy)
