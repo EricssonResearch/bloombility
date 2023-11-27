@@ -1,3 +1,8 @@
 num_clients: 4
+data_split_available: ["iid", "num_classes", "num_samples"]
+data_split_config:
+  dirichlet_alpha: 0.3
+  niid_factor: 2
+data_split_chosen: "num_samples"
 wandb_active: False
 wandb_key: "<login key here>"

@@ -28,18 +28,21 @@ def main(cfg: DictConfig):
 
     num_clients = cfg.main.num_clients
 
-    data_distributor = DATA_DISTRIBUTOR(num_clients)
+    data_split = cfg.main.data_split_chosen
+    data_split_config = cfg.main.data_split_config
+
+    data_distributor = DATA_DISTRIBUTOR(num_clients, data_split_config, data_split)
     # wandb experiments
     wandb_track = cfg.main.wandb_active
     wandb_key = cfg.main.wandb_key
 
-    if wandb_track:
+    if wandb_track and wandb.run is None:
         wandb.login(anonymous="never", key=wandb_key)
         # start a new wandb run to track this script
         wandb.init(
             # set the wandb project where this run will be logged
             entity="cs_team_b",
-            project="bloomnet_visualization",
+            project="non_iid_client_reporting_fn",
             # track hyperparameters and run metadata
             config={
                 "method": "federated",
@@ -50,6 +53,13 @@ def main(cfg: DictConfig):
         )
 
     trainloaders = data_distributor.get_trainloaders()
+    print("Amount of loaders:", len(trainloaders))
+
+    for trainloader in trainloaders:
+        print("Len of loader: ", len(trainloader) * batch_size)
+        if wandb_track:
+            wandb.log({"trainloader_len": len(trainloader) * batch_size})
+
     testloader = data_distributor.get_testloader()
 
     client_fn = generate_client_fn(trainloaders, testloader, batch_size, num_epochs)

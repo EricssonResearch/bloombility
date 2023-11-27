@@ -3,14 +3,39 @@
 from collections import OrderedDict
 import torch
 import flwr as fl
+import wandb
+import random
 
 from bloom import models
+
+# if you want to have metrics reported to wandb
+# for each client in the federated learning
+CLIENT_REPORTING = False
+wandb_key = "<key>"
 
 DEVICE = torch.device("cpu")
 
 
+def wandb_login() -> None:
+    """logs into wandb and sets up a new project
+    that can log metrics for each client in fn learning
+    """
+    if wandb.run is None:
+        wandb.login(anonymous="never", key=wandb_key)
+    # start a new wandb run to track this script
+    wandb.init(
+        # set the wandb project where this run will be logged
+        entity="cs_team_b",
+        # keep separate from other runs by logging to different project
+        project="non_iid_client_reporting_fn_2",
+    )
+
+
 def train(
-    net: torch.nn.Module, trainloader: torch.utils.data.DataLoader, epochs: int
+    net: torch.nn.Module,
+    trainloader: torch.utils.data.DataLoader,
+    epochs: int,
+    count: int,
 ) -> None:
     """Train the network on the training set.
 
@@ -19,16 +44,40 @@ def train(
         trainloader: training dataset
         epochs: number of epochs in a federated learning round
     """
+
+    net.train()  # set to train mode
     criterion = torch.nn.CrossEntropyLoss()
-    # optimizer = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
     optimizer = torch.optim.Adam(net.parameters())
-    for _ in range(epochs):
+    for i in range(epochs):
         for images, labels in trainloader:
             images, labels = images.to(DEVICE), labels.to(DEVICE)
             optimizer.zero_grad()
             loss = criterion(net(images), labels)
             loss.backward()
             optimizer.step()
+
+        train_loss, train_acc = test(net, trainloader)  # get loss and acc on train set
+
+        if CLIENT_REPORTING:
+            wandb.log(
+                {
+                    "dataset_len": len(trainloader),
+                    "train_loss": train_loss,
+                    "train_accuracy": train_acc,
+                    "epoch": i,
+                    "traincounter": count,
+                }
+            )
+
+    # it can be accessed through the fit function
+    # needs an aggregate_fn definition for the strategies
+    # to be useful
+    results = {
+        "train_loss": train_loss,
+        "train_accuracy": train_acc,
+    }
+
+    return results
 
 
 def test(
@@ -46,6 +95,7 @@ def test(
     """
     criterion = torch.nn.CrossEntropyLoss()
     correct, total, loss = 0, 0, 0.0
+    net.eval()  # set to test mode
     with torch.no_grad():
         for data in testloader:
             images, labels = data[0].to(DEVICE), data[1].to(DEVICE)
@@ -55,6 +105,9 @@ def test(
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
     accuracy = correct / total
+
+    if CLIENT_REPORTING:
+        wandb.log({"test_loss": loss, "test_accuracy": accuracy})
 
     return loss, accuracy
 
@@ -67,10 +120,14 @@ class FlowerClient(fl.client.NumPyClient):
         self.testloader = testloader
         self.batch_size = batch_size
         self.num_epochs = num_epochs
+        self.train_counter = 0
+        self.id = random.randint(0, 100)
 
         num_trainset = len(self.trainloader) * self.batch_size
         num_testset = len(self.testloader) * self.batch_size
         self.num_examples = {"testset": num_trainset, "trainset": num_testset}
+        if CLIENT_REPORTING:
+            wandb_login()
 
     def load_dataset(self, train_path, test_path):
         # Calculate the total number of samples
@@ -89,8 +146,13 @@ class FlowerClient(fl.client.NumPyClient):
 
     def fit(self, parameters, config):
         self.set_parameters(parameters)
-        train(self.net, self.trainloader, epochs=self.num_epochs)
-        return self.get_parameters(config={}), self.num_examples["trainset"], {}
+        self.train_counter += 1
+        print(f"Train_counter for client {self.id}: {self.train_counter}")
+
+        results = train(
+            self.net, self.trainloader, epochs=self.num_epochs, count=self.train_counter
+        )
+        return self.get_parameters(config={}), self.num_examples["trainset"], results
 
     def evaluate(self, parameters, config):
         self.set_parameters(parameters)

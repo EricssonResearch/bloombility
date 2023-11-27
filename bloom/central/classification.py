@@ -5,9 +5,17 @@ import torch.nn as nn
 
 from bloom import models
 from bloom import load_data
+from bloom.load_data.data_distributor import DATA_DISTRIBUTOR
 
 
 # based on tutorial here: https://blog.paperspace.com/writing-cnns-from-scratch-in-pytorch/
+class data_split_config:
+    """for testing purposes:
+    Get data via data_distributor module
+    """
+
+    dirichlet_alpha = 1
+    niid_factor = 2
 
 
 # vvvv ---------- do not change ---------------------------- vvvvv
@@ -122,6 +130,20 @@ def get_classification_loaders(
         trainset, testset = get_preprocessed_CIFAR10()
     elif _dataset == "FEMNIST":
         trainset, testset = get_preprocessed_FEMNIST()
+    elif _dataset == "IID":
+        # for testing purposes: non-iid data splits via data_distrubutor module
+        cl = data_split_config
+        data_distributor = DATA_DISTRIBUTOR(4, cl, "iid")
+        testloader = data_distributor.get_testloader()
+        trainloaders = data_distributor.get_trainloaders()
+        print("Amount of loaders:", len(trainloaders))
+        for i, loader in enumerate(trainloaders):
+            print(
+                f"Length of trainloader {i}: {len(loader)} with batch size 32 equals approx. {len(loader)*32} total images"
+            )
+        # because it's centralized, only needs one trainloader
+        trainloader = trainloaders[0]
+        return trainloader, testloader
     else:
         print("Unrecognized dataset")
         quit()
@@ -184,12 +206,13 @@ def get_classification_model(_dataset: str, device: str) -> nn.Module:
         model: model as defined in Networks file
     """
     # setting up model
-    if _dataset == "CIFAR10":
+    if _dataset == "CIFAR10" or _dataset == "IID":
+        # IID here means it's the CIFAR10 dataset accessed through data_distributor
         model = models.Networks.CNNCifar(num_CIFAR_classes).to(device)
     elif _dataset == "FEMNIST":
         model = models.Networks.CNNFemnist(num_FEMNIST_classes).to(device)
     else:
-        print("did not recognized chosen NN model. Check your constants.")
+        print("did not recognize chosen NN model. Check your constants.")
         quit()
     return model
 

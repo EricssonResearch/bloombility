@@ -3,8 +3,8 @@ task:
   chosen: "classification"
 datasets:
   classification:
-    available: ["FEMNIST", "CIFAR10"]
-    chosen: "FEMNIST"
+    available: ["FEMNIST", "CIFAR10", "IID"]
+    chosen: "IID"
   regression:
     available: ["CaliforniaHousing"]
     chosen: "CaliforniaHousing"
