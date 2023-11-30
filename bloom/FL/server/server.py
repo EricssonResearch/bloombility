@@ -8,9 +8,17 @@ import wandb
 from bloom import models
 from bloom import ROOT_DIR
 import sys
+import logging
 
 
 def main():
+    # Configure logging in each subprocess
+    logging.basicConfig(filename="server.log", level=logging.INFO)
+
+    # Example log statement with explicit flushing
+    logging.debug("Debug message")
+    logging.getLogger().handlers[0].flush()
+
     # PARAMS
     # Number of rounds of federated learning
     n_rounds = int(sys.argv[1])
