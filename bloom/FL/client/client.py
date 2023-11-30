@@ -7,17 +7,23 @@ import flwr as fl
 from bloom import models
 from bloom import ROOT_DIR
 import os
+import hydra
+from hydra.core.hydra_config import HydraConfig
+from omegaconf import DictConfig, OmegaConf
 import sys
 from bloom.load_data.data_distributor import DATA_DISTRIBUTOR
 
+
 import logging
 
-DEVICE = torch.device("cpu")
+config_path = os.path.join(ROOT_DIR, "config", "federated")
+DEVICE = torch.device("cuda")
 
 
-def main():
-    batch_size = int(sys.argv[1])
-    num_epochs = int(sys.argv[2])
+@hydra.main(config_path=config_path, config_name="base", version_base=None)
+def main(cfg: DictConfig):
+    batch_size = cfg.client.hyper_params.batch_size
+    num_epochs = cfg.client.hyper_params.num_epochs
 
     # Configure logging in each subprocess
     logging.basicConfig(filename="clients.log", level=logging.INFO)

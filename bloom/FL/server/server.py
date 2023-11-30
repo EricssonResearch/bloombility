@@ -8,10 +8,17 @@ import wandb
 from bloom import models
 from bloom import ROOT_DIR
 import sys
+import hydra
+from hydra.core.hydra_config import HydraConfig
+from omegaconf import DictConfig, OmegaConf
 import logging
+import os
+
+config_path = os.path.join(ROOT_DIR, "config", "federated")
 
 
-def main():
+@hydra.main(config_path=config_path, config_name="base", version_base=None)
+def main(cfg: DictConfig):
     # Configure logging in each subprocess
     logging.basicConfig(filename="server.log", level=logging.INFO)
 
@@ -19,15 +26,14 @@ def main():
     logging.debug("Debug message")
     logging.getLogger().handlers[0].flush()
 
-    # PARAMS
     # Number of rounds of federated learning
-    n_rounds = int(sys.argv[1])
+    n_rounds = cfg.server.num_rounds
 
     # Strategies available:  ["FedAvg", "FedAdam", "FedYogi", "FedAdagrad", "FedAvgM"]
-    strategy = sys.argv[2]
+    strategy = cfg.server.strategy
     # wandb experiments
-    wandb_track = False
-    if sys.argv[3] == "True":
+    wandb_track = cfg.main.wandb_active
+    if wandb_track == "True":
         wandb_track = True
 
     wandb_key = sys.argv[4]

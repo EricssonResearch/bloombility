@@ -4,3 +4,5 @@
 #SBATCH -t 0-00:10:00
 
 python ~/bloom/bloom/FL/main.py
+python ~/bloom/bloom/FL/server/server.py
+python ~/bloom/bloom/FL/client/client.py
