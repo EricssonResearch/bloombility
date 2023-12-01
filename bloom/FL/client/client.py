@@ -12,19 +12,12 @@ from bloom.load_data.data_distributor import DATA_DISTRIBUTOR
 
 import logging
 
-DEVICE = torch.device("cpu")
+DEVICE = torch.device("cuda")
 
 
 def main():
     batch_size = int(sys.argv[1])
     num_epochs = int(sys.argv[2])
-
-    # Configure logging in each subprocess
-    logging.basicConfig(filename="clients.log", level=logging.INFO)
-
-    # Example log statement with explicit flushing
-    logging.debug("Debug message")
-    logging.getLogger().handlers[0].flush()
 
     train_dataset_path = sys.argv[3]
     test_dataset_path = sys.argv[4]
@@ -32,6 +25,7 @@ def main():
     client = FlowerClient(batch_size, num_epochs)
     client.load_dataset(train_dataset_path, test_dataset_path)
     fl.client.start_numpy_client(server_address="127.0.0.1:8080", client=client)
+    sys.stdout.flush()
 
 
 def train(

@@ -12,13 +12,6 @@ import logging
 
 
 def main():
-    # Configure logging in each subprocess
-    logging.basicConfig(filename="server.log", level=logging.INFO)
-
-    # Example log statement with explicit flushing
-    logging.debug("Debug message")
-    logging.getLogger().handlers[0].flush()
-
     # PARAMS
     # Number of rounds of federated learning
     n_rounds = int(sys.argv[1])
@@ -53,6 +46,7 @@ def main():
         strategy=strategy, num_rounds=n_rounds, wandb_track=wandb_track
     )
     server.start_server()
+    sys.stdout.flush()
 
     if wandb_track:
         wandb.finish()

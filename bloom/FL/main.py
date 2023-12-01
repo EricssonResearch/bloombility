@@ -36,9 +36,9 @@ def main(cfg: DictConfig):
 
     DATA_DISTRIBUTOR(num_clients)
 
-    subprocess.run(["chmod", "+x", "server/server.py"], check=True)
+    # subprocess.run(["chmod", "+x", "server/server.py"], check=True)
 
-    subprocess.Popen(
+    process = subprocess.Popen(
         [
             os.path.join(server_path, "server.py"),
             f"{n_rounds}",
@@ -46,10 +46,12 @@ def main(cfg: DictConfig):
             f"{wandb_track}",
             f"{wandb_key}",
             f"{num_clients}",
-        ]
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
     )
 
-    subprocess.run(["chmod", "+x", "client/client.py"], check=True)
+    # subprocess.run(["chmod", "+x", "client/client.py"], check=True)
     for i in range(1, num_clients + 1):
         trainloader_str = (
             f"{ROOT_DIR}/load_data/datasets/train_dataset{i}_{num_clients}.pth"
@@ -62,8 +64,18 @@ def main(cfg: DictConfig):
                 f"{num_epochs}",
                 trainloader_str,
                 testloader_str,
-            ]
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
         )
+
+    print("Main finished")
+
+    process.wait()
+    # Access the output and error
+    output, error = process.communicate()
+    print(output.decode("utf-8"))
+    print(error.decode("utf-8"))
 
 
 if __name__ == "__main__":

@@ -1,3 +1,3 @@
-num_clients: 4
+num_clients: 2
 wandb_active: False
-wandb_key: "<login key here>"
+wandb_key: "2858fc7a094d399980a53804e6e2208721f44609"

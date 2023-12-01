@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #SBATCH -A NAISS2023-22-1181 -p alvis
 #SBATCH -N 1 --gpus-per-node=T4:2  # We're launching 2 nodes with 8 Nvidia T4 GPUs each
-#SBATCH -t 0-00:10:00
+#SBATCH -t 0-00:30:00
 
 python ~/bloom/bloom/FL/main.py
