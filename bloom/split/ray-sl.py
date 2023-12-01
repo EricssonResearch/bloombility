@@ -10,6 +10,8 @@ import torch.optim as optim
 import torch
 from torch.nn import CrossEntropyLoss
 import numpy as np
+import matplotlib.pyplot as plt
+
 
 from bloom import load_data
 from bloom.models import CNNWorkerModel, CNNHeadModel
@@ -26,6 +28,7 @@ import ray
 # from server import HeadModelLocal
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+MAX_CLIENTS = 10
 
 
 @ray.remote  # Specify the number of GPUs the actor should use
@@ -69,9 +72,14 @@ class WorkerActor:
         self.optimizer = optim.SGD(
             self.model.parameters(), lr=0.01, momentum=0.9, weight_decay=5e-4
         )
+        self.losses = []
+
+    def getattr(self, attr):
+        return getattr(self, attr)
 
     def train(self, server_actor, epochs):
         for epoch in range(epochs):
+            loss = 0.0
             for inputs, labels in self.train_data:
                 inputs = inputs
                 self.optimizer.zero_grad()
@@ -81,7 +89,8 @@ class WorkerActor:
                 )
                 client_output.backward(grad_from_server)
                 self.optimizer.step()
-            print(f"Epoch {epoch} completed")
+            self.losses.append(loss)
+            print(f"Epoch {epoch+1} completed, loss: {loss}")
 
     def test(self, server_actor):
         total = 0
@@ -101,8 +110,35 @@ class WorkerActor:
         return avg_loss, accuracy
 
 
+def plot_workers_losses(workers):
+    losses_future = [worker.getattr.remote("losses") for worker in workers]
+    losses = ray.get(losses_future)
+    for worker_losses in losses:
+        plt.plot(worker_losses)
+    plt.xlabel("Epoch")
+    # set x-axis label to be the epoch number (only integers)
+    plt.xticks(np.arange(0, len(worker_losses), 1.0))
+    plt.ylabel("Loss")
+    plt.title("Workers Losses")
+    # set plot legend to be the worker number
+    plt.legend([f"Worker {i+1}" for i in range(len(workers))])
+    plt.show()
+
+
 def main():
-    num_workers = 2
+    # Use argparse to get the arguments from the command line
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--num-workers", type=int, default=2, help="number of workers")
+
+    args = parser.parse_args()
+
+    num_workers = args.num_workers
+
+    if num_workers > MAX_CLIENTS:
+        raise ValueError(
+            "Number of clients must be less than or equal to ", MAX_CLIENTS
+        )
+
     data_distributor = None
     if data_distributor is None:
         data_distributor = DATA_DISTRIBUTOR(num_workers)
@@ -134,7 +170,7 @@ def main():
     ]
 
     # Start training on each worker
-    num_epochs = 10
+    num_epochs = 5
     train_futures = [worker.train.remote(server, num_epochs) for worker in workers]
     ray.get(train_futures)  # Wait for training to complete
 
@@ -145,7 +181,12 @@ def main():
     # Aggregate test results
     avg_loss = sum([result[0] for result in test_results]) / len(test_results)
     avg_accuracy = sum([result[1] for result in test_results]) / len(test_results)
-    print(f"Average Test Loss: {avg_loss}, Average Accuracy: {avg_accuracy}%")
+    print("Accuracies: ", [result[1] for result in test_results])
+    print(f"Average Test Loss: {avg_loss}\nAverage Accuracy: {avg_accuracy}%")
+
+    plot_workers_losses(workers)
+
+    ray.shutdown()
 
 
 if __name__ == "__main__":
