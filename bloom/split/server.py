@@ -19,6 +19,7 @@ import os
 import numpy as np
 
 
+@ray.remote
 class HeadModelLocal(CNNHeadModel):
     def __init__(self, lr=0.01):
         super().__init__()
@@ -26,6 +27,12 @@ class HeadModelLocal(CNNHeadModel):
         self.lr = lr
         self.optimizer = SGD(self.model.parameters(), lr=0.01)
         self.loss_fn = CrossEntropyLoss()
+
+    def getattr(self, attr):
+        return getattr(self, attr)
+
+    def logits(self, x):
+        return self.model(x)
 
     def train_head_step(
         self,
@@ -35,10 +42,17 @@ class HeadModelLocal(CNNHeadModel):
         loss_fn,
         head_optimizer,
     ):
-        head_optimizer.zero_grad()
-        output = head_model(input_tensor)
-        loss = loss_fn(output, labels)
+        # print("INITIATED TRAIN HEAD STEP")
+        self.optimizer.zero_grad()
+        # print("GETTING HEAD MODEL OUTPUT")
+        output = head_model.logits.remote(input_tensor)
+        ray.get(output)
+        # print("HEAD MODEL OUTPUT RETRIEVED")
+        # print("CALCULATING LOSS")
+        loss = self.loss_fn(output, labels)
+        # print("LOSS CALCULATED")
         loss.backward(retain_graph=True)
+        # print("BACKWARD PROPAGATION DONE")
         head_optimizer.step()
 
         return input_tensor.grad, loss

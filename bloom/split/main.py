@@ -62,13 +62,14 @@ def get_mnist(batch_size: int):
 @ray.remote
 def accuracy(model: Module, head_model: Module, test_loader: DataLoader):
     model.eval.remote()
-    head_model.eval()
+    head_model.eval.remote()
 
     correct_test = 0
     total_test_labels = 0
     for input_data, labels in test_loader:
         split_layer_tensor = ray.get(model.forward.remote(input_data))
-        logits = head_model(split_layer_tensor)
+        logits = head_model.logtis.remote(split_layer_tensor)
+        logits = ray.get(logits)
 
         _, predictions = logits.max(1)
 
@@ -106,14 +107,14 @@ def split_nn(
                 head_model=head_model,
                 loss_fn=head_loss_fn,
                 worker_optimizer=worker_model.get_optimizer.remote(),
-                head_optimizer=head_model.optimizer,
+                head_optimizer=head_model.getattr.remote("optimizer"),
                 train_data=training_sets[i],
                 test_data=testing_sets,
             )
             train_loss = ray.get(train_loss)
 
             history[i]["train_loss"].append(train_loss)
-            print(f"Worker {i} Epoch {e} - Training loss: {train_loss}")
+            print(f"Worker {i} Epoch {e+1} - Training loss: {train_loss}")
 
     for i, worker_model in enumerate(worker_models):
         print(
@@ -178,7 +179,7 @@ def main():
     #     f"start --address={ray_info['redis_address']} --resources='{'worker': {num_clients}}'"
     # )
 
-    head_model = HeadModelLocal()
+    head_model = HeadModelLocal.remote()
 
     # Create Ray actors for the worker models and set to ray namesapece
     input_layer_size = 3072
@@ -192,7 +193,7 @@ def main():
     split_nn(
         worker_models=worker_models,
         head_model=head_model,
-        head_loss_fn=head_model.loss_fn,
+        head_loss_fn=head_model.getattr.remote("loss_fn"),
         training_sets=trainloaders,
         testing_sets=testloader,
         epochs=EPOCHS,

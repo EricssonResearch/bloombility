@@ -40,7 +40,7 @@ class WorkerModelRemote(CNNWorkerModel):
         total_loss = 0
 
         self.model.train()
-        head_model.train()
+        head_model.train.remote()
 
         for features, labels in train_data:
             # forward propagation worker model
@@ -50,9 +50,10 @@ class WorkerModelRemote(CNNWorkerModel):
 
             client_output = cut_layer_tensor.clone().detach().requires_grad_(True)
 
+            # print("ENTERING TRAIN HEAD MODEL")
             # perform forward propagation on the head model and then we receive
             # the gradients to do backward propagation
-            grads, loss = head_model.train_head_step(
+            train_head_output = head_model.train_head_step.remote(
                 head_model=head_model,
                 input_tensor=client_output,
                 labels=labels,
@@ -60,7 +61,10 @@ class WorkerModelRemote(CNNWorkerModel):
                 head_optimizer=head_optimizer,
             )
 
+            # print("WAITING FOR TRAIN HEAD MODEL")
+            grads, loss = ray.get(train_head_output)
             # backward propagation on the worker node
+            # print("BACKWARD PROPAGATION ON WORKER NODE")
             cut_layer_tensor.backward(grads)
             worker_optimizer.step()
 
