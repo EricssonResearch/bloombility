@@ -10,6 +10,7 @@ from torchvision.datasets import CIFAR10
 # sys.path.insert(0, "../..")  # the root path of the project
 
 from .download_cifar10 import CIFARTEN
+from .download_femnist import FEMNIST
 from bloom import ROOT_DIR
 
 """
@@ -62,8 +63,8 @@ class DATA_DISTRIBUTOR:
         # testset = CIFAR10(".", train=False, download=True, transform=transform)
 
         # trainset , testset = load_data.CIFARTEN.get_cifar10_datasets('.',transform=transform)
-        trainset = CIFARTEN(".", train=True, download=True, transform=transform)
-        testset = CIFARTEN(".", train=False, download=True, transform=transform)
+        trainset = FEMNIST(".", train=True, download=True, transform=transform)
+        testset = FEMNIST(".", train=False, download=True, transform=transform)
 
         return trainset, testset
 
@@ -79,7 +80,13 @@ class DATA_DISTRIBUTOR:
         """
         # Split training set into `num_clients` partitions to simulate different local datasets
         partition_size = len(trainset) // self.num_clients
-        lengths = [partition_size] * self.num_clients
+        # Calculate leftover data
+        leftover = len(trainset) % self.num_clients
+        # Create lengths list and distribute leftover data
+        lengths = [
+            partition_size + 1 if i < leftover else partition_size
+            for i in range(self.num_clients)
+        ]
         datasets = random_split(trainset, lengths, torch.Generator().manual_seed(42))
 
         # Split into partitions and put int DataLoader
