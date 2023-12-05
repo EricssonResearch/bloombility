@@ -25,7 +25,8 @@ config_file=${2:-default.yaml}
 echo "Number of clients: ${num_clients}"
 
 echo "Running main.py"
-python "${main_script}" -n "${num_clients}" &
+python "${main_script}" -n "${num_clients}" & pid1=$!
+wait $pid1
 
 echo "Running server.py"
 python "${server_script}" -n "${num_clients}" -c "${config_file}" &
