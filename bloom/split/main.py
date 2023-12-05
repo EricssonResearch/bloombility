@@ -21,7 +21,7 @@ import wandb
 os.environ["RAY_DEDUP_LOGS"] = "0"  # Disable deduplication of RAY logs
 import ray
 
-from client import WorkerActor
+from worker import WorkerActor
 from server import ServerActor
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
