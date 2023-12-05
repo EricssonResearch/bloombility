@@ -3,6 +3,41 @@
 #SBATCH -N 1 --gpus-per-node=T4:2  # We're launching 2 nodes with 8 Nvidia T4 GPUs each
 #SBATCH -t 0-00:10:00
 
-python ~/bloom/bloom/FL/main.py
-python ~/bloom/bloom/FL/server/server.py
-python ~/bloom/bloom/FL/client/client.py
+# repo_name="bloom_MDU"
+# ROOT_DIR="/mimer/NOBACKUP/groups/bloom/${repo_name}/bloom"
+
+ROOT_DIR="/Users/marion/Code/bloom/bloom"
+DATASET_DIR="${ROOT_DIR}/load_data/datasets"
+main_script="${ROOT_DIR}/FL/main.py"
+server_script="${ROOT_DIR}/FL/server/server.py"
+client_script="${ROOT_DIR}/FL/client/client.py"
+
+# Check if the correct number of arguments is provided
+if [ "$#" -eq 0 ]; then
+    echo "Usage: $0 <num_clients> [config_file]"
+    exit 1
+fi
+
+# Extract command-line arguments
+num_clients=$1
+config_file=${2:-default.yaml}
+
+echo "Number of clients: ${num_clients}"
+
+echo "Running main.py"
+python "${main_script}" -n "${num_clients}" &
+
+echo "Running server.py"
+python "${server_script}" -n "${num_clients}" -c "${config_file}" &
+sleep 3
+
+# Run client.py in a loop with num_clients
+for i in `seq 1 ${num_clients}`; do
+    echo "Running client.py $i"
+    python "${client_script}" -c "${config_file}" --train "${DATASET_DIR}/train_dataset${i}_${num_clients}.pth" --test "${DATASET_DIR}/test_dataset.pth" &
+done
+
+# Enable CTRL+C to stop all background processes
+trap "trap - SIGTERM && kill -- -$$" SIGINT SIGTERM
+# Wait for all background processes to complete
+wait
