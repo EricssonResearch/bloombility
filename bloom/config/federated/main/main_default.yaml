@@ -1,3 +1,0 @@
-num_clients: 4
-wandb_active: False
-wandb_key: "<login key here>"
