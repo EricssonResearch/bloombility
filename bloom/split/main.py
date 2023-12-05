@@ -9,11 +9,6 @@
 
 from copy import deepcopy
 from typing import List
-from torch import nn
-from torch.nn import Module
-from torch.optim import SGD
-from torchvision import transforms
-import torch.optim as optim
 import torch
 from torch.nn import CrossEntropyLoss
 import numpy as np
@@ -21,6 +16,7 @@ import matplotlib.pyplot as plt
 from bloom.load_data.data_distributor import DATA_DISTRIBUTOR
 import argparse
 import os
+import wandb
 
 os.environ["RAY_DEDUP_LOGS"] = "0"  # Disable deduplication of RAY logs
 import ray
@@ -31,6 +27,24 @@ from server import ServerActor
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 MAX_CLIENTS = 10
 EPOCHS = 5
+WANDB_KEY = "<your key here>"
+
+
+def init_wandb(num_workers):
+    wandb_key = WANDB_KEY
+    wandb.login(anonymous="never", key=wandb_key)
+    # start a new wandb run to track this script
+    wandb.init(
+        # set the wandb project where this run will be logged
+        entity="cs_team_b",
+        project="bloomnet_visualization",
+        # track hyperparameters and run metadata
+        config={
+            "method": "split",
+            "n_epochs": EPOCHS,
+            "n_workers": num_workers,
+        },
+    )
 
 
 def plot_workers_losses(workers):
@@ -61,6 +75,13 @@ def main():
         raise ValueError(
             "Number of clients must be less than or equal to ", MAX_CLIENTS
         )
+
+    # wandb experiments
+
+    wandb_track = False  # <-needs to be exported to yaml
+
+    if wandb_track:
+        init_wandb(num_workers)
 
     # Load data using the data distributor class
     data_distributor = None
@@ -109,6 +130,8 @@ def main():
 
     plot_workers_losses(workers)
 
+    if wandb_track:
+        wandb.finish()
     ray.shutdown()
 
 
