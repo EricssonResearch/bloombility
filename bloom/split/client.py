@@ -1,91 +1,57 @@
-from copy import deepcopy
 from typing import List
 from torch import nn
 from torch.nn import Module
-from torch.optim import SGD
-from torchvision.datasets import MNIST
+import torch.optim as optim
 from torchvision import transforms
-from torch.utils.data import DataLoader
 import torch
 from torch.nn import CrossEntropyLoss
-
-from bloom import load_data
 from bloom.models import CNNWorkerModel
-
-from bloom.load_data.data_distributor import DATA_DISTRIBUTOR
 import ray
 import numpy as np
 
 
 @ray.remote
-class WorkerModelRemote(CNNWorkerModel):
-    def __init__(self, input_layer_size, lr=0.01):
-        super().__init__(input_layer_size)
-        self.lr = lr
+class WorkerActor:
+    def __init__(self, train_data, test_data, input_layer_size):
         self.model = CNNWorkerModel(input_layer_size)
-        self.optimizer = SGD(self.model.parameters(), lr=self.lr)
+        self.train_data = train_data
+        self.test_data = test_data
+        self.optimizer = optim.SGD(
+            self.model.parameters(), lr=0.01, momentum=0.9, weight_decay=5e-4
+        )
+        self.losses = []
 
-    def get_optimizer(self):
-        return self.optimizer
+    def getattr(self, attr):
+        return getattr(self, attr)
 
-    def split_train_step(
-        self,
-        head_model: Module,
-        loss_fn,
-        worker_optimizer,
-        head_optimizer,
-        train_data: DataLoader,
-        test_data: DataLoader,
-    ):
-        total_loss = 0
+    def train(self, server_actor, epochs):
+        for epoch in range(epochs):
+            loss = 0.0
+            for inputs, labels in self.train_data:
+                inputs = inputs
+                self.optimizer.zero_grad()
+                client_output = self.model(inputs)
+                grad_from_server, loss = ray.get(
+                    server_actor.process_and_update.remote(client_output, labels)
+                )
+                client_output.backward(grad_from_server)
+                self.optimizer.step()
+            self.losses.append(loss)
+            print(f"Epoch {epoch+1} completed, loss: {loss}")
 
-        self.model.train()
-        head_model.train.remote()
-
-        for features, labels in train_data:
-            # forward propagation worker model
-            worker_optimizer.zero_grad()
-
-            cut_layer_tensor = self.model(features)
-
-            client_output = cut_layer_tensor.clone().detach().requires_grad_(True)
-
-            # print("ENTERING TRAIN HEAD MODEL")
-            # perform forward propagation on the head model and then we receive
-            # the gradients to do backward propagation
-            train_head_output = head_model.train_head_step.remote(
-                head_model=head_model,
-                input_tensor=client_output,
-                labels=labels,
-                loss_fn=loss_fn,
-                head_optimizer=head_optimizer,
+    def test(self, server_actor):
+        total = 0
+        correct = 0
+        total_loss = 0.0
+        for inputs, labels in self.test_data:
+            inputs = inputs
+            client_output = self.model(inputs)
+            loss, correct_pred, total_pred = ray.get(
+                server_actor.validate.remote(client_output, labels)
             )
-
-            # print("WAITING FOR TRAIN HEAD MODEL")
-            grads, loss = ray.get(train_head_output)
-            # backward propagation on the worker node
-            # print("BACKWARD PROPAGATION ON WORKER NODE")
-            cut_layer_tensor.backward(grads)
-            worker_optimizer.step()
-
-            total_loss += loss.item()
-
-        return total_loss / len(train_data)
-
-    # def accuracy(model: Module, head_model: Module, test_loader: DataLoader):
-    #     model.eval.remote()
-    #     head_model.eval()
-
-    #     correct_test = 0
-    #     total_test_labels = 0
-    #     for input_data, labels in test_loader:
-    #         split_layer_tensor = ray.get(model.remote(input_data))
-    #         logits = head_model(split_layer_tensor)
-
-    #         _, predictions = logits.max(1)
-
-    #         correct_test += predictions.eq(labels).sum().item()
-    #         total_test_labels += len(labels)
-
-    #     test_acc = correct_test / total_test_labels
-    #     return test_acc
+            total += total_pred
+            correct += correct_pred
+            total_loss += loss
+        avg_loss = total_loss / len(self.test_data)
+        accuracy = 100 * correct / total
+        return avg_loss, accuracy

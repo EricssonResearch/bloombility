@@ -1,169 +1,79 @@
-# Implement split learning in PyTorch using ray to simulate the network.
+# Run: python bloom/split/main.py --num-workers 2
+#
+#   This is the main entry point for the split learning module.
+#   It is responsible for instantiating the server and worker actors,
+#   and starting the training and testing processes.
+#
+#   Written by Moji @ 2023
+
 
 from copy import deepcopy
 from typing import List
 from torch import nn
 from torch.nn import Module
 from torch.optim import SGD
-from torchvision.datasets import MNIST
 from torchvision import transforms
-from torch.utils.data import DataLoader
+import torch.optim as optim
 import torch
 from torch.nn import CrossEntropyLoss
-
-from bloom import load_data
-from bloom.models import CNNWorkerModel, CNNHeadModel
-
+import numpy as np
+import matplotlib.pyplot as plt
 from bloom.load_data.data_distributor import DATA_DISTRIBUTOR
-import ray
 import argparse
 import os
-import numpy as np
-from client import WorkerModelRemote
-from server import HeadModelLocal
 
-# ENVIROMENT VARIABLES
-# MAX number of clients
+os.environ["RAY_DEDUP_LOGS"] = "0"  # Disable deduplication of RAY logs
+import ray
+
+from client import WorkerActor
+from server import ServerActor
+
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 MAX_CLIENTS = 10
-
-# Number of epochs to run for each worker
 EPOCHS = 5
 
-# Learning rate for training
-LEARNING_RATE = 0.01
 
-
-def get_mnist(batch_size: int):
-    # basic data transformation for MNIST
-    # outputs a 28x28=784 tensors for every sample
-    data_transform = transforms.Compose(
-        [
-            transforms.ToTensor(),
-            transforms.Normalize((0.5,), (0.5,)),
-            transforms.Lambda(lambda x: torch.flatten(x)),
-        ]
-    )
-
-    # downloads the datasets
-    train_set = MNIST(
-        root="./data", train=True, download=True, transform=data_transform
-    )
-    test_set = MNIST(
-        root="./data", train=False, download=True, transform=data_transform
-    )
-
-    # data loader
-    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
-    test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=True)
-
-    return train_loader, test_loader
-
-
-@ray.remote
-def accuracy(model: Module, head_model: Module, test_loader: DataLoader):
-    model.eval.remote()
-    head_model.eval.remote()
-
-    correct_test = 0
-    total_test_labels = 0
-    for input_data, labels in test_loader:
-        split_layer_tensor = ray.get(model.forward.remote(input_data))
-        logits = head_model.logtis.remote(split_layer_tensor)
-        logits = ray.get(logits)
-
-        _, predictions = logits.max(1)
-
-        correct_test += predictions.eq(labels).sum().item()
-        total_test_labels += len(labels)
-
-    test_acc = correct_test / total_test_labels
-    return test_acc
-
-
-# @ray.remote
-def split_nn(
-    worker_models: List[Module],
-    head_model: Module,
-    head_loss_fn,
-    training_sets: List[DataLoader],
-    testing_sets: List[DataLoader],
-    epochs: int,
-    learning_rate: float,
-):
-    assert len(worker_models) == len(training_sets)
-
-    # TODO: get a list of optimizers for each worker and assign them to the worker
-    # similarly assign the head optimizer to the head model
-    # optimizers = []
-
-    history = {}
-
-    for i in range(len(worker_models)):
-        history[i] = {"train_acc": [], "test_acc": [], "train_loss": []}
-
-    for i, worker_model in enumerate(worker_models):
-        for e in range(epochs):
-            train_loss = worker_model.split_train_step.remote(
-                head_model=head_model,
-                loss_fn=head_loss_fn,
-                worker_optimizer=worker_model.get_optimizer.remote(),
-                head_optimizer=head_model.getattr.remote("optimizer"),
-                train_data=training_sets[i],
-                test_data=testing_sets,
-            )
-            train_loss = ray.get(train_loss)
-
-            history[i]["train_loss"].append(train_loss)
-            print(f"Worker {i} Epoch {e+1} - Training loss: {train_loss}")
-
-    for i, worker_model in enumerate(worker_models):
-        print(
-            f"Worker {i} acc: {ray.get(accuracy.remote(worker_model, head_model, testing_sets))}"
-        )
-
-    return history
+def plot_workers_losses(workers):
+    losses_future = [worker.getattr.remote("losses") for worker in workers]
+    losses = ray.get(losses_future)
+    for worker_losses in losses:
+        plt.plot(worker_losses)
+    plt.xlabel("Epoch")
+    # set x-axis label to be the epoch number (only integers)
+    plt.xticks(np.arange(0, len(worker_losses), 1.0))
+    plt.ylabel("Loss")
+    plt.title("Workers Losses")
+    # set plot legend to be the worker number
+    plt.legend([f"Worker {i+1}" for i in range(len(workers))])
+    plt.show()
 
 
 def main():
     # Use argparse to get the arguments from the command line
     parser = argparse.ArgumentParser()
-    parser.add_argument("--num-clients", type=int, default=2, help="number of clients")
+    parser.add_argument("--num-workers", type=int, default=2, help="number of workers")
 
     args = parser.parse_args()
 
-    num_clients = args.num_clients
+    num_workers = args.num_workers
 
-    if num_clients > MAX_CLIENTS:
+    if num_workers > MAX_CLIENTS:
         raise ValueError(
             "Number of clients must be less than or equal to ", MAX_CLIENTS
         )
 
+    # Load data using the data distributor class
     data_distributor = None
     if data_distributor is None:
-        data_distributor = DATA_DISTRIBUTOR(num_clients)
+        data_distributor = DATA_DISTRIBUTOR(num_workers)
         trainloaders = data_distributor.get_trainloaders()
-        testloader = data_distributor.get_testloader()
-    # train_loader, test_loader = get_mnist(batch_size=32)
-    # # split data in two
-    # train_set = []
-    # for train_features, train_labels in train_loader:
-    #     train_set.append((train_features, train_labels))
-
-    # test_set = []
-    # for test_features, test_labels in test_loader:
-    #     test_set.append((test_features, test_labels))
-
-    # train_split = int(len(train_set) / 2)
-    # test_split = int(len(test_set) / 2)
-
-    # trainloaders = [train_set[0:train_split], train_set[train_split:]]
-    # testloaders = [test_set[0:test_split], test_set[test_split:]]
+        test_data = data_distributor.get_testloader()
 
     # Shut down Ray if it has already been initialized
     if ray.is_initialized():
         ray.shutdown()
     # Instantiate the server and models
-    ray_ctx = ray.init(namespace="split_learning", num_cpus=num_clients + 1)
+    ray_ctx = ray.init(namespace="split_learning", num_cpus=num_workers + 1)
 
     print("============================== INFO ==============================")
     main_node_address = ray_ctx.address_info["redis_address"]
@@ -172,33 +82,34 @@ def main():
     print(f"Ray initialized with resources: {cluster_resources}")
     print("============================== END ==============================")
 
-    # # use python to start the server from commandline
-    # os.system("start --head --resources='{\"server\": 1}'")
-    # # ray start --address=<address of head node> --resources='{"worker": 100}'
-    # os.system(
-    #     f"start --address={ray_info['redis_address']} --resources='{'worker': {num_clients}}'"
-    # )
+    # Spawn server and worker actors
+    server = ServerActor.remote()
 
-    head_model = HeadModelLocal.remote()
-
-    # Create Ray actors for the worker models and set to ray namesapece
     input_layer_size = 3072
-    worker_models = [
-        WorkerModelRemote.options(
-            name=f"worker_{i}", namespace="split_learning"
-        ).remote(input_layer_size)
-        for i in range(num_clients)
+    workers = [
+        WorkerActor.options(name=f"worker_{i}", namespace="split_learning").remote(
+            trainloaders[i], test_data, input_layer_size
+        )
+        for i in range(num_workers)
     ]
 
-    split_nn(
-        worker_models=worker_models,
-        head_model=head_model,
-        head_loss_fn=head_model.getattr.remote("loss_fn"),
-        training_sets=trainloaders,
-        testing_sets=testloader,
-        epochs=EPOCHS,
-        learning_rate=LEARNING_RATE,
-    )
+    # Start training on each worker
+    train_futures = [worker.train.remote(server, EPOCHS) for worker in workers]
+    ray.get(train_futures)  # Wait for training to complete
+
+    # Start testing on each worker
+    test_futures = [worker.test.remote(server) for worker in workers]
+    test_results = ray.get(test_futures)
+
+    # Aggregate test results
+    avg_loss = sum([result[0] for result in test_results]) / len(test_results)
+    avg_accuracy = sum([result[1] for result in test_results]) / len(test_results)
+    print("Accuracies: ", [result[1] for result in test_results])
+    print(f"Average Test Loss: {avg_loss}\nAverage Accuracy: {avg_accuracy}%")
+
+    plot_workers_losses(workers)
+
+    ray.shutdown()
 
 
 if __name__ == "__main__":
