@@ -5,25 +5,41 @@ import torch
 import flwr as fl
 
 from bloom import models
-from bloom import ROOT_DIR
+import argparse
+import yaml
 import os
-import hydra
-from hydra.core.hydra_config import HydraConfig
-from omegaconf import DictConfig, OmegaConf
-import sys
-from bloom.load_data.data_distributor import DATA_DISTRIBUTOR
-
+from bloom import ROOT_DIR
 
 import logging
 
-config_path = os.path.join(ROOT_DIR, "config", "federated")
-DEVICE = torch.device("cuda")
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+CONFIG_PATH = os.path.join(ROOT_DIR, "config", "federated")
 
 
-@hydra.main(config_path=config_path, config_name="base", version_base=None)
-def main(cfg: DictConfig):
-    batch_size = cfg.client.hyper_params.batch_size
-    num_epochs = cfg.client.hyper_params.num_epochs
+def main():
+    parser = argparse.ArgumentParser(
+        prog="client.py", description="runs a flower server"
+    )
+
+    parser.add_argument("-n", "--num_clients", type=int, default=4, dest="num_clients")
+    parser.add_argument(
+        "-c",
+        "--config",
+        default="default.yaml",
+        type=str,
+        required=False,
+        dest="config_file",
+    )
+    parser.add_argument("--train", required=True, type=str, dest="train_path")
+    parser.add_argument("--test", required=True, type=str, dest="test_path")
+    args = parser.parse_args()
+
+    cfg_path = os.path.join(CONFIG_PATH, args.config_file)
+    with open(cfg_path, "r") as cfg_file:
+        cfg = yaml.safe_load(cfg_file)
+
+    batch_size = cfg["client"]["hyper_params"]["batch_size"]
+    num_epochs = cfg["client"]["hyper_params"]["num_epochs"]
 
     # Configure logging in each subprocess
     logging.basicConfig(filename="clients.log", level=logging.INFO)
@@ -32,11 +48,11 @@ def main(cfg: DictConfig):
     logging.debug("Debug message")
     logging.getLogger().handlers[0].flush()
 
-    train_dataset_path = sys.argv[3]
-    test_dataset_path = sys.argv[4]
+    train_path = args.train_path
+    test_path = args.test_path
 
     client = FlowerClient(batch_size, num_epochs)
-    client.load_dataset(train_dataset_path, test_dataset_path)
+    client.load_dataset(train_path, test_path)
     fl.client.start_numpy_client(server_address="127.0.0.1:8080", client=client)
 
 

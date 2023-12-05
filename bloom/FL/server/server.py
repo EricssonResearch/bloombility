@@ -1,24 +1,40 @@
 #!/usr/bin/env python
 
 import flwr as fl
-from typing import List
-import numpy as np
 from bloom.FL.server.utils import get_parameters, define_strategy
 import wandb
 from bloom import models
 from bloom import ROOT_DIR
-import sys
-import hydra
-from hydra.core.hydra_config import HydraConfig
-from omegaconf import DictConfig, OmegaConf
+import argparse
 import logging
 import os
+import yaml
 
-config_path = os.path.join(ROOT_DIR, "config", "federated")
+CONFIG_PATH = os.path.join(ROOT_DIR, "config", "federated")
 
 
-@hydra.main(config_path=config_path, config_name="base", version_base=None)
-def main(cfg: DictConfig):
+def main():
+    parser = argparse.ArgumentParser(
+        prog="server.py", description="runs a flower server"
+    )
+
+    parser.add_argument("-n", "--num_clients", type=int, default=4, dest="num_clients")
+    parser.add_argument(
+        "-c",
+        "--config",
+        default="default.yaml",
+        type=str,
+        required=False,
+        dest="config_file",
+    )
+    args = parser.parse_args()
+
+    cfg_path = os.path.join(CONFIG_PATH, args.config_file)
+    with open(cfg_path, "r") as cfg_file:
+        cfg = yaml.safe_load(cfg_file)
+
+    num_clients = args.num_clients
+
     # Configure logging in each subprocess
     logging.basicConfig(filename="server.log", level=logging.INFO)
 
@@ -27,19 +43,15 @@ def main(cfg: DictConfig):
     logging.getLogger().handlers[0].flush()
 
     # Number of rounds of federated learning
-    n_rounds = cfg.server.num_rounds
+    n_rounds = cfg["server"]["num_rounds"]
 
     # Strategies available:  ["FedAvg", "FedAdam", "FedYogi", "FedAdagrad", "FedAvgM"]
-    strategy = cfg.server.strategy
+    strategy = cfg["server"]["strategy"]
     # wandb experiments
-    wandb_track = cfg.main.wandb_active
-    if wandb_track == "True":
-        wandb_track = True
-
-    wandb_key = sys.argv[4]
-    num_clients = int(sys.argv[5])
+    wandb_track = cfg["server"]["wandb_active"]
 
     if wandb_track:
+        wandb_key = cfg["server"]["wandb_key"]
         wandb.login(anonymous="never", key=wandb_key)
         # start a new wandb run to track this script
         wandb.init(
