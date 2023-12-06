@@ -25,10 +25,12 @@ if not os.path.exists(dataset):
         "No experiments found. Try running any type of learning with data_distributor flag visualization=True first."
     )
     quit()
-df = pd.read_csv(dataset, header=None)
+df = pd.read_csv(
+    dataset, header=None, low_memory=False, on_bad_lines="warn", names=range(14)
+)
 
-# Ignore the first column
-df = df.iloc[:, 1:]
+# Ignore the first two columns
+df = df.iloc[:, 2:]
 
 
 # Get the number of experiments
@@ -54,6 +56,10 @@ for i, row in df.iterrows():
 # Set the x and y axis labels
 plt.xlabel("Number of Datasets")
 plt.ylabel("Experiments")
+
+locs, labels = plt.yticks()  # Get the current locations and labels.
+plt.yticks(np.arange(1, 4, step=1))
+
 
 locs, labels = plt.xticks()  # Get the current locations and labels.
 plt.xticks(np.arange(1, max_dataset_len + 1, step=1))  # Set label locations.

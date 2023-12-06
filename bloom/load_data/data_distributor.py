@@ -196,8 +196,22 @@ class DATA_DISTRIBUTOR:
         """
         # Split training set into `num_clients` partitions to simulate different local datasets
         # generate num_clients random numbers with dirichilet distribution
+        done = False
+        count = 0
+        while not done:
+            rand_nums = np.random.dirichlet(np.ones(self.num_clients) * alpha)
+            too_small = False
+            for num in rand_nums:
+                if num < 1 / len(trainset):
+                    too_small = True
+            if too_small:
+                done = False
+            else:
+                done = True
+            count = count + 1
 
-        rand_nums = np.random.dirichlet(np.ones(self.num_clients) * alpha)
+        print(f"Generating distribution took {count} tries")
+
         datasets = random_split(trainset, rand_nums, torch.Generator().manual_seed(42))
 
         # Split into partitions and put int DataLoader as with iid
@@ -214,6 +228,7 @@ class DATA_DISTRIBUTOR:
             cur_date = datetime.datetime.now()
             cur_date = cur_date.strftime("%d %B %Y at %H:%M")
             sizes.insert(0, cur_date)
+            sizes.insert(1, alpha)
             exp_folder = os.path.join(ROOT_DIR, "load_data", "experiments")
             if not os.path.exists(exp_folder):
                 os.makedirs(exp_folder)
