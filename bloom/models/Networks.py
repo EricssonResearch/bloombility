@@ -68,7 +68,7 @@ class CNNCifar(nn.Module):
 
 # model from https://github.com/wenzhu23333/Federated-Learning/blob/master/models/Nets.py
 class CNNFemnist(nn.Module):
-    def __init__(self, args):
+    def __init__(self, args=None):
         super().__init__()
         self.conv1 = nn.Conv2d(1, 32, 7, padding=3)
         self.act = nn.ReLU()
