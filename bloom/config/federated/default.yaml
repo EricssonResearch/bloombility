@@ -1,3 +1,5 @@
+main:
+  dataset: "FEMNIST"
 client:
   hyper_params:
       learning_rate: 0.001

@@ -28,11 +28,14 @@ be achived by making each "client.py" take its index as a execution argument
 
 
 class DATA_DISTRIBUTOR:
-    def __init__(self, numClients):
+    def __init__(self, numClients, dataset: str):
         self.num_clients = numClients
 
         print("Load dataset...")
-        trainsets, testset = self.load_datasets()
+        if dataset == "FEMNIST":
+            trainsets, testset = self.load_datasets_FEMNIST()
+        elif dataset == "CIFAR10":
+            trainsets, testset = self.load_datasets_CIFAR10()
         self.trainloaders, self.testloader = self.split_dataset(trainsets, testset, 32)
 
         # Store all datasets
@@ -48,9 +51,26 @@ class DATA_DISTRIBUTOR:
     def get_testloader(self):
         return self.testloader
 
-    def load_datasets(self):
+    def load_datasets_FEMNIST(self):
         """
-        For loading a dataset (right now the CIFAR-10 dataset).
+        For loading the FEMNIST dataset.
+        """
+        transform = transforms.Compose(
+            [transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))]
+        )
+
+        # trainset = CIFAR10(".", train=True, download=True, transform=transform)
+        # testset = CIFAR10(".", train=False, download=True, transform=transform)
+
+        # trainset , testset = load_data.CIFARTEN.get_cifar10_datasets('.',transform=transform)
+        trainset = FEMNIST(".", train=True, download=True, transform=transform)
+        testset = FEMNIST(".", train=False, download=True, transform=transform)
+
+        return trainset, testset
+
+    def load_datasets_CIFAR10(self):
+        """
+        For loading the CIFAR-10 dataset.
         """
         transform = transforms.Compose(
             [
@@ -63,8 +83,8 @@ class DATA_DISTRIBUTOR:
         # testset = CIFAR10(".", train=False, download=True, transform=transform)
 
         # trainset , testset = load_data.CIFARTEN.get_cifar10_datasets('.',transform=transform)
-        trainset = FEMNIST(".", train=True, download=True, transform=transform)
-        testset = FEMNIST(".", train=False, download=True, transform=transform)
+        trainset = CIFARTEN(".", train=True, download=True, transform=transform)
+        testset = CIFARTEN(".", train=False, download=True, transform=transform)
 
         return trainset, testset
 
