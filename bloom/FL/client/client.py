@@ -4,7 +4,7 @@ from collections import OrderedDict
 import torch
 import flwr as fl
 import wandb
-import random
+from sklearn.metrics import f1_score
 
 from bloom import models
 
@@ -35,7 +35,6 @@ def train(
     net: torch.nn.Module,
     trainloader: torch.utils.data.DataLoader,
     epochs: int,
-    count: int,
 ) -> None:
     """Train the network on the training set.
 
@@ -65,7 +64,6 @@ def train(
                     "train_loss": train_loss,
                     "train_accuracy": train_acc,
                     "epoch": i,
-                    "traincounter": count,
                 }
             )
 
@@ -95,6 +93,7 @@ def test(
     """
     criterion = torch.nn.CrossEntropyLoss()
     correct, total, loss = 0, 0, 0.0
+    list_of_f1s = []
     net.eval()  # set to test mode
     with torch.no_grad():
         for data in testloader:
@@ -104,10 +103,17 @@ def test(
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
+            f1_sc = f1_score(labels, predicted, average="weighted")
+            list_of_f1s.append(f1_sc)
     accuracy = correct / total
+    averaged_f1 = sum(list_of_f1s) / len(list_of_f1s)
 
     if CLIENT_REPORTING:
-        wandb.log({"test_loss": loss, "test_accuracy": accuracy})
+        wandb.log(
+            {"test_loss": loss, "test_accuracy": accuracy, "averaged_f1": averaged_f1}
+        )
+
+    print(f"average f1: {averaged_f1}")
 
     return loss, accuracy
 
@@ -120,8 +126,6 @@ class FlowerClient(fl.client.NumPyClient):
         self.testloader = testloader
         self.batch_size = batch_size
         self.num_epochs = num_epochs
-        self.train_counter = 0
-        self.id = random.randint(0, 100)
 
         num_trainset = len(self.trainloader) * self.batch_size
         num_testset = len(self.testloader) * self.batch_size
@@ -146,12 +150,8 @@ class FlowerClient(fl.client.NumPyClient):
 
     def fit(self, parameters, config):
         self.set_parameters(parameters)
-        self.train_counter += 1
-        print(f"Train_counter for client {self.id}: {self.train_counter}")
 
-        results = train(
-            self.net, self.trainloader, epochs=self.num_epochs, count=self.train_counter
-        )
+        results = train(self.net, self.trainloader, epochs=self.num_epochs)
         return self.get_parameters(config={}), self.num_examples["trainset"], results
 
     def evaluate(self, parameters, config):
