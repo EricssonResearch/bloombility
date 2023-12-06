@@ -11,10 +11,15 @@ import glob
 import hydra
 from omegaconf import DictConfig, OmegaConf
 
-from sklearn.metrics import f1_score
-from sklearn.metrics import roc_auc_score
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+from sklearn.metrics import (
+    f1_score,
+    confusion_matrix,
+    roc_curve,
+    auc,
+    ConfusionMatrixDisplay,
+)
 import matplotlib.pyplot as plt
+import numpy as np
 
 config_path = os.path.join(ROOT_DIR, "config", "federated")
 DEVICE = torch.device("cpu")
@@ -31,6 +36,31 @@ def eval_final(model, test_loader):
     disp.plot()
     plt.show()
 
+    # ROC:
+    plt.figure()
+    lw = 2
+    print("Generating ROC plot, this takes a moment...")
+    # note: only works if the image dataset has 10 classes. That applies to CIFAR10 and FEMNIST
+    for which_class in range(10):
+        actuals, class_probabilities = test_class_probabilities(
+            model, test_loader, which_class
+        )
+
+        fpr, tpr, _ = roc_curve(actuals, class_probabilities)
+        roc_auc = auc(fpr, tpr)
+        formatted_roc_value = format(roc_auc, ".2f")
+        plt.plot(
+            fpr, tpr, lw=lw, label=f"class {which_class} (area = {formatted_roc_value})"
+        )
+    plt.plot([0, 1], [0, 1], color="navy", lw=lw, linestyle="--")
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel("False Positive Rate")
+    plt.ylabel("True Positive Rate")
+    plt.title("ROC curves")
+    plt.legend(loc="lower right")
+    plt.show()
+
 
 def test_label_predictions(model, test_loader):
     """final test to visualize performance of the model"""
@@ -45,6 +75,21 @@ def test_label_predictions(model, test_loader):
             actuals.extend(target.view_as(prediction))
             predictions.extend(prediction)
     return [i.item() for i in actuals], [i.item() for i in predictions]
+
+
+def test_class_probabilities(model, test_loader, which_class):
+    """for ROC"""
+    model.eval()
+    actuals = []
+    probabilities = []
+    with torch.no_grad():
+        for data, target in test_loader:
+            data, target = data.to(DEVICE), target.to(DEVICE)
+            output = model(data)
+            prediction = output.argmax(dim=1, keepdim=True)
+            actuals.extend(target.view_as(prediction) == which_class)
+            probabilities.extend(np.exp(output[:, which_class]))
+    return [i.item() for i in actuals], [i.item() for i in probabilities]
 
 
 @hydra.main(config_path=config_path, config_name="base", version_base=None)
