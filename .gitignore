@@ -165,3 +165,9 @@ launch.json
 
 # ignore downloaded data when loading datasets
 data/
+*.tar.gz
+cifar-10-batches-py/
+outputs/
+saved_fl_models/
+*.png
+*.csv
