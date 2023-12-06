@@ -27,7 +27,7 @@ def wandb_login() -> None:
         # set the wandb project where this run will be logged
         entity="cs_team_b",
         # keep separate from other runs by logging to different project
-        project="non_iid_client_reporting_fn_2",
+        project="f1_non_iid_unbalancing",
     )
 
 
@@ -55,7 +55,9 @@ def train(
             loss.backward()
             optimizer.step()
 
-        train_loss, train_acc = test(net, trainloader)  # get loss and acc on train set
+        train_loss, train_acc, train_f1 = test(
+            net, trainloader
+        )  # get loss and acc on train set
 
         if CLIENT_REPORTING:
             wandb.log(
@@ -73,6 +75,7 @@ def train(
     results = {
         "train_loss": train_loss,
         "train_accuracy": train_acc,
+        "train_fn": train_f1,
     }
 
     return results
@@ -115,7 +118,7 @@ def test(
 
     print(f"average f1: {averaged_f1}")
 
-    return loss, accuracy
+    return loss, accuracy, averaged_f1
 
 
 class FlowerClient(fl.client.NumPyClient):
@@ -156,8 +159,12 @@ class FlowerClient(fl.client.NumPyClient):
 
     def evaluate(self, parameters, config):
         self.set_parameters(parameters)
-        loss, accuracy = test(self.net, self.testloader)
-        return float(loss), self.num_examples["testset"], {"accuracy": float(accuracy)}
+        loss, accuracy, f1 = test(self.net, self.testloader)
+        return (
+            float(loss),
+            self.num_examples["testset"],
+            {"accuracy": float(accuracy), "f1": f1},
+        )
 
 
 def generate_client_fn(trainloaders, testloader, batch_size, num_epochs):

@@ -123,7 +123,7 @@ def main(cfg: DictConfig):
         wandb.init(
             # set the wandb project where this run will be logged
             entity="cs_team_b",
-            project="non_iid_client_reporting_fn",
+            project="f1_non_iid_unbalancing",
             # track hyperparameters and run metadata
             config={
                 "method": "federated",
