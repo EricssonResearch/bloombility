@@ -1,4 +1,6 @@
 import os
+import csv
+import datetime
 
 import math
 import numpy as np
@@ -69,7 +71,9 @@ class DatasetSplit(Dataset):
 
 
 class DATA_DISTRIBUTOR:
-    def __init__(self, numClients, data_split_config=None, data_split="iid"):
+    def __init__(
+        self, numClients, data_split_config=None, data_split="iid", visualize=False
+    ):
         """
         Process:
         - Loads entire CIFAR10 trainset and testset
@@ -99,7 +103,7 @@ class DATA_DISTRIBUTOR:
             alpha = data_split_config.dirichlet_alpha
             # vvv this is the new loader that returns random number of samples for each client vvv
             self.trainloaders, self.testloader = self.split_random_size_datasets(
-                trainsets, testset, 32, alpha
+                trainsets, testset, 32, alpha, visualize=True
             )
         # vvv this is the new n-class loader that creates subsets with n classes per client vvv
         elif data_split == "num_classes" and data_split_config is not None:
@@ -173,7 +177,9 @@ class DATA_DISTRIBUTOR:
         testloader = DataLoader(testset, batch_size=batch_size)
         return trainloaders, testloader
 
-    def split_random_size_datasets(self, trainset, testset, batch_size, alpha):
+    def split_random_size_datasets(
+        self, trainset, testset, batch_size, alpha, visualize=False
+    ):
         """
         Splits the trainset into randomly sized subsets
         and then puts the trainsets and testset into DataLoaders.
@@ -190,15 +196,51 @@ class DATA_DISTRIBUTOR:
         """
         # Split training set into `num_clients` partitions to simulate different local datasets
         # generate num_clients random numbers with dirichilet distribution
-        rand_nums = np.random.dirichlet(np.ones(self.num_clients) * alpha)
+        done = False
+        count = 0
+        while not done:
+            rand_nums = np.random.dirichlet(np.ones(self.num_clients) * alpha)
+            too_small = False
+            for num in rand_nums:
+                if num < 1 / len(trainset):
+                    too_small = True
+            if too_small:
+                done = False
+            else:
+                done = True
+            count = count + 1
+
+        print(f"Generating distribution took {count} tries")
+
         datasets = random_split(trainset, rand_nums, torch.Generator().manual_seed(42))
 
         # Split into partitions and put int DataLoader as with iid
         trainloaders = []
+        sizes = []
+
         for i, ds in enumerate(datasets):
             trainloaders.append(DataLoader(ds, batch_size=batch_size, shuffle=True))
             print(f"Size of dataloader {i+1}/{self.num_clients}: {len(ds)} images")
+            sizes.append(len(ds))
         testloader = DataLoader(testset, batch_size=batch_size)
+
+        if visualize:
+            cur_date = datetime.datetime.now()
+            cur_date = cur_date.strftime("%d %B %Y at %H:%M")
+            sizes.insert(0, cur_date)
+            sizes.insert(1, alpha)
+            exp_folder = os.path.join(ROOT_DIR, "load_data", "experiments")
+            if not os.path.exists(exp_folder):
+                os.makedirs(exp_folder)
+            file_location = os.path.join(exp_folder, "dataset_sizes.csv")
+            mode = "a"
+            if not os.path.exists(file_location):
+                mode = "w"
+            with open(file_location, mode, newline="") as csvfile:
+                writer = csv.writer(csvfile)
+                writer.writerow(sizes)
+                csvfile.close()
+
         return trainloaders, testloader
 
     def split_n_classes_datasets(self, trainset, testset, batch_size, niid_factor: 2):
