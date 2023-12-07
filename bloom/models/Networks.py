@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torchvision.models as models
 
 
 # Creating a CNN class
@@ -157,3 +158,20 @@ class CNNWorkerModel(nn.Module):
         output = self.pool(F.relu(self.conv2(x)))
         # output = self.linear_relu_stack(x)
         return output
+
+
+# define class of ResNet18 model for CIFAR10 dataset
+class ResNet18(nn.Module):
+    def __init__(self, num_classes=10):
+        super(ResNet18, self).__init__()
+        self.model = models.resnet18(pretrained=False)
+
+        # Modify the first layer and the last layer to adapt to CIFAR10
+        self.model.conv1 = nn.Conv2d(
+            3, 64, kernel_size=3, stride=1, padding=1, bias=False
+        )
+        self.model.maxpool = nn.Identity()  # remove max pooling
+        self.model.fc = nn.Linear(self.model.fc.in_features, num_classes)
+
+    def forward(self, x):
+        return self.model(x)
