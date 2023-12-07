@@ -37,7 +37,7 @@ def init_wandb(num_workers):
     wandb.init(
         # set the wandb project where this run will be logged
         entity="cs_team_b",
-        project="bloomnet_visualization",
+        project="alvis-split-1",
         # track hyperparameters and run metadata
         config={
             "method": "split",
@@ -94,7 +94,7 @@ def main():
     if ray.is_initialized():
         ray.shutdown()
     # Instantiate the server and models
-    ray_ctx = ray.init(namespace="split_learning", num_cpus=num_workers + 1)
+    ray_ctx = ray.init(namespace="split_learning", num_gpus=1)
 
     print("============================== INFO ==============================")
     main_node_address = ray_ctx.address_info["redis_address"]

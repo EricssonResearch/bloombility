@@ -8,11 +8,12 @@ from torch.nn import CrossEntropyLoss
 from bloom.models import CNNWorkerModel
 import ray
 import numpy as np
+import wandb
 
 
 @ray.remote
 class WorkerActor:
-    def __init__(self, train_data, test_data, input_layer_size):
+    def __init__(self, train_data, test_data, input_layer_size, wandb=False):
         self.model = CNNWorkerModel(input_layer_size)
         self.train_data = train_data
         self.test_data = test_data
@@ -20,6 +21,7 @@ class WorkerActor:
             self.model.parameters(), lr=0.01, momentum=0.9, weight_decay=5e-4
         )
         self.losses = []
+        self.wandb = wandb
 
     def getattr(self, attr):
         return getattr(self, attr)
@@ -37,6 +39,8 @@ class WorkerActor:
                 client_output.backward(grad_from_server)
                 self.optimizer.step()
             self.losses.append(loss)
+            if self.wandb:
+                wandb.log({"loss": loss})
             print(f"Epoch {epoch+1} completed, loss: {loss}")
 
     def test(self, server_actor):
