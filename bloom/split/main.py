@@ -14,9 +14,16 @@ from torch.nn import CrossEntropyLoss
 import numpy as np
 import matplotlib.pyplot as plt
 from bloom.load_data.data_distributor import DATA_DISTRIBUTOR
+from bloom import ROOT_DIR
 import argparse
 import os
 import wandb
+
+import hydra
+from hydra.core.hydra_config import HydraConfig
+from omegaconf import DictConfig, OmegaConf
+
+config_path = os.path.join(ROOT_DIR, "config", "split")
 
 os.environ["RAY_DEDUP_LOGS"] = "0"  # Disable deduplication of RAY logs
 import ray
@@ -62,14 +69,22 @@ def plot_workers_losses(workers):
     plt.show()
 
 
-def main():
+@hydra.main(config_path=config_path, config_name="base", version_base=None)
+def main(cfg: DictConfig):
     # Use argparse to get the arguments from the command line
     parser = argparse.ArgumentParser()
     parser.add_argument("--num-workers", type=int, default=2, help="number of workers")
 
     args = parser.parse_args()
 
-    num_workers = args.num_workers
+    # PARAMS from config
+    MAX_CLIENTS = cfg.max_clients
+    EPOCHS = cfg.epochs
+
+    if cfg.num_workers != args.num_workers:
+        num_workers = cfg.num_workers
+    else:
+        num_workers = args.num_workers
 
     if num_workers > MAX_CLIENTS:
         raise ValueError(
