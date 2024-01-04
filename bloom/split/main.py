@@ -79,10 +79,10 @@ def main(cfg: DictConfig):
 
     # PARAMS from config
     MAX_CLIENTS = cfg.max_clients
-    EPOCHS = cfg.epochs
+    EPOCHS = cfg.n_epochs
 
-    if cfg.num_workers != args.num_workers:
-        num_workers = cfg.num_workers
+    if cfg.n_workers != args.num_workers:
+        num_workers = cfg.n_workers
     else:
         num_workers = args.num_workers
 
