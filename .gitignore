@@ -165,3 +165,6 @@ launch.json
 
 # ignore downloaded data when loading datasets
 data/
+cifar*
+cifar/
+outputs/

@@ -1,12 +1,10 @@
-# is now given as argument when running main.py
-# task:
-#   available: ["classification", "regression"]
-#   chosen: "classification"
-
+task:
+  available: ["classification", "regression"]
+  chosen: "classification"
 datasets:
   classification:
-    available: ["FEMNIST", "CIFAR10"]
-    chosen: "FEMNIST"
+    available: ["FEMNIST", "CIFAR10", "IID"]
+    chosen: "IID"
   regression:
     available: ["CaliforniaHousing"]
     chosen: "CaliforniaHousing"
@@ -31,7 +29,7 @@ wandb:
   active_tracking: False
   login_key: <put key here>
 
-hyper-params:
+hyper_params:
   batch_size: 10
   learning_rate: 0.001
   num_epochs: 50
