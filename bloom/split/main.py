@@ -138,9 +138,24 @@ def main(cfg: DictConfig):
     # test_results = ray.get(test_futures)
 
     # Start training on each worker and wait for it to complete before moving to the next
-    for worker in workers:
-        train_future = worker.train.remote(server, EPOCHS)
+    # for worker in workers:
+    #     train_future = worker.train.remote(server, EPOCHS)
+    #     ray.get(train_future)
+
+    # Assuming workers is a list of your WorkerActor instances
+    for i in range(len(workers) - 1):
+        # Train the current worker
+        train_future = workers[i].train.remote(server, EPOCHS)
         ray.get(train_future)
+        # Get the weights from the trained worker
+        weights = ray.get(workers[i].get_weights.remote())
+
+        # Set the weights of the next worker to the weights of the current worker
+        workers[i + 1].set_weights.remote(weights)
+
+    # Train the last worker
+    train_future = workers[-1].train.remote(server, EPOCHS)
+    ray.get(train_future)
 
     # Start testing on each worker and wait for it to complete before moving to the next
     test_results = []

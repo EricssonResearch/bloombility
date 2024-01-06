@@ -59,3 +59,14 @@ class WorkerActor:
         avg_loss = total_loss / len(self.test_data)
         accuracy = 100 * correct / total
         return avg_loss, accuracy
+
+    def get_model(self):
+        return self.model
+
+    # define a function to return the model's weights
+    def get_weights(self):
+        return self.model.state_dict()
+
+    # define a function to set the model's weights
+    def set_weights(self, weights):
+        self.model.load_state_dict(weights)

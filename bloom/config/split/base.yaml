@@ -1,5 +1,5 @@
-n_epochs: 5
-n_workers: 2
+n_epochs: 15
+n_workers: 4
 wandb:
   track: false
   key: "<your key here>"
