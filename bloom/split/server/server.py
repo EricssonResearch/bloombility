@@ -5,24 +5,33 @@ import torch.optim as optim
 from torchvision import transforms
 import torch
 from torch.nn import CrossEntropyLoss
-
-
-from bloom.models import CNNHeadModel
-
 from bloom.load_data.data_distributor import DATA_DISTRIBUTOR
+
+# Import the model you want to use based on models/Networks.py
+from bloom.models import CNNHeadModel
 import ray
-import argparse
-import os
 import numpy as np
+
+
+# Define a dictionary mapping optimizer names to their classes
+OPTIMIZERS = {
+    "SGD": optim.SGD,
+    "Adam": optim.Adam,
+}
 
 
 @ray.remote  # Specify the number of GPUs the actor should use
 class ServerActor:
-    def __init__(self):
+    def __init__(self, config={}):
         self.model = CNNHeadModel()
         self.criterion = nn.CrossEntropyLoss()
-        self.optimizer = optim.SGD(
-            self.model.parameters(), lr=0.01, momentum=0.9, weight_decay=5e-4
+        # Create the optimizer using the configuration parameters
+        OptimizerClass = OPTIMIZERS[config.optimizer]
+        self.optimizer = OptimizerClass(
+            self.model.parameters(),
+            lr=config.lr,
+            momentum=config.momentum,
+            weight_decay=config.weight_decay,
         )
 
     def process_and_update(self, client_output, labels):

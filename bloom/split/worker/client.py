@@ -6,19 +6,31 @@ from torchvision import transforms
 import torch
 from torch.nn import CrossEntropyLoss
 from bloom.models import CNNWorkerModel
+from bloom import ROOT_DIR
 import ray
 import numpy as np
 import wandb
 
+# Define a dictionary mapping optimizer names to their classes
+OPTIMIZERS = {
+    "SGD": optim.SGD,
+    "Adam": optim.Adam,
+}
+
 
 @ray.remote
 class WorkerActor:
-    def __init__(self, train_data, test_data, input_layer_size, wandb=False):
+    def __init__(self, train_data, test_data, input_layer_size, wandb=False, config={}):
         self.model = CNNWorkerModel(input_layer_size)
         self.train_data = train_data
         self.test_data = test_data
-        self.optimizer = optim.SGD(
-            self.model.parameters(), lr=0.01, momentum=0.9, weight_decay=5e-4
+        # Create the optimizer using the configuration parameters
+        OptimizerClass = OPTIMIZERS[config.optimizer]
+        self.optimizer = OptimizerClass(
+            self.model.parameters(),
+            lr=config.lr,
+            momentum=config.momentum,
+            weight_decay=config.weight_decay,
         )
         self.losses = []
         self.wandb = wandb

@@ -1,0 +1,6 @@
+n_epochs: 15
+n_workers: 4
+wandb:
+  track: false
+  key: "<your key here>"
+max_clients: 10

@@ -78,11 +78,11 @@ def main(cfg: DictConfig):
     args = parser.parse_args()
 
     # PARAMS from config
-    MAX_CLIENTS = cfg.max_clients
-    EPOCHS = cfg.n_epochs
+    MAX_CLIENTS = cfg.main.max_clients
+    EPOCHS = cfg.main.n_epochs
 
-    if cfg.n_workers != args.num_workers:
-        num_workers = cfg.n_workers
+    if cfg.main.n_workers != args.num_workers:
+        num_workers = cfg.main.n_workers
     else:
         num_workers = args.num_workers
 
@@ -119,12 +119,12 @@ def main(cfg: DictConfig):
     print("============================== END ==============================")
 
     # Spawn server and worker actors
-    server = ServerActor.remote()
+    server = ServerActor.remote(config=cfg.server)
 
     input_layer_size = 3072
     workers = [
         WorkerActor.options(name=f"worker_{i}", namespace="split_learning").remote(
-            trainloaders[i], test_data, input_layer_size
+            trainloaders[i], test_data, input_layer_size, config=cfg.worker
         )
         for i in range(num_workers)
     ]
