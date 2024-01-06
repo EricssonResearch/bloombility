@@ -129,13 +129,24 @@ def main(cfg: DictConfig):
         for i in range(num_workers)
     ]
 
-    # Start training on each worker
-    train_futures = [worker.train.remote(server, EPOCHS) for worker in workers]
-    ray.get(train_futures)  # Wait for training to complete
+    # # Start training on each worker
+    # train_futures = [worker.train.remote(server, EPOCHS) for worker in workers]
+    # ray.get(train_futures)  # Wait for training to complete
 
-    # Start testing on each worker
-    test_futures = [worker.test.remote(server) for worker in workers]
-    test_results = ray.get(test_futures)
+    # # Start testing on each worker
+    # test_futures = [worker.test.remote(server) for worker in workers]
+    # test_results = ray.get(test_futures)
+
+    # Start training on each worker and wait for it to complete before moving to the next
+    for worker in workers:
+        train_future = worker.train.remote(server, EPOCHS)
+        ray.get(train_future)
+
+    # Start testing on each worker and wait for it to complete before moving to the next
+    test_results = []
+    for worker in workers:
+        test_future = worker.test.remote(server)
+        test_results.append(ray.get(test_future))
 
     # Aggregate test results
     avg_loss = sum([result[0] for result in test_results]) / len(test_results)
