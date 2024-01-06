@@ -17,6 +17,7 @@ from bloom.load_data.data_distributor import DATA_DISTRIBUTOR
 from bloom import ROOT_DIR
 import argparse
 import os
+from datetime import datetime
 import wandb
 
 import hydra
@@ -32,19 +33,25 @@ from worker import WorkerActor
 from server import ServerActor
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-MAX_CLIENTS = 10
-EPOCHS = 5
-WANDB_KEY = "<your key here>"
+EPOCHS = None
 
 
-def init_wandb(num_workers):
-    wandb_key = WANDB_KEY
+def init_wandb(num_workers: int, conf: dict = {}) -> None:
+    """
+    Initialize wandb for logging.
+
+    params:
+        num_workers: number of workers
+        conf: configuration dictionary (Requires the WANDB_API_KEY environment variable to be set)
+    """
+    wandb_key = conf["api_key"]
     wandb.login(anonymous="never", key=wandb_key)
     # start a new wandb run to track this script
     wandb.init(
         # set the wandb project where this run will be logged
-        entity="cs_team_b",
-        project="alvis-split-1",
+        entity=conf["entity"],
+        project=conf["project"],
+        group=conf["group"],
         # track hyperparameters and run metadata
         config={
             "method": "split",
@@ -54,7 +61,15 @@ def init_wandb(num_workers):
     )
 
 
-def plot_workers_losses(workers):
+def plot_workers_losses(workers: List, wandb_track: bool = False) -> None:
+    """
+    Plot the losses of each worker.
+
+    params:
+        workers: list of worker actors
+        wandb_track: whether or not to track and visualize experiment performance with Weights and Biases (default: False)
+    """
+
     losses_future = [worker.getattr.remote("losses") for worker in workers]
     losses = ray.get(losses_future)
     for worker_losses in losses:
@@ -66,11 +81,24 @@ def plot_workers_losses(workers):
     plt.title("Workers Losses")
     # set plot legend to be the worker number
     plt.legend([f"Worker {i+1}" for i in range(len(workers))])
+    # Get current time
+    now = datetime.now()
+    # Format as string (YYYYMMDD_HHMMSS format)
+    timestamp_str = now.strftime("%Y%m%d_%H%M%S")
+    plt.savefig(f"{ROOT_DIR}/split/plots/workers_losses_{timestamp_str}.png")
+    if wandb_track:
+        wandb.log({"workers_losses": plt})
     plt.show()
 
 
 @hydra.main(config_path=config_path, config_name="base", version_base=None)
-def main(cfg: DictConfig):
+def main(cfg: DictConfig) -> None:
+    """
+    Main entry point for the split learning module.
+
+    params:
+        cfg: configuration dictionary
+    """
     # Use argparse to get the arguments from the command line
     parser = argparse.ArgumentParser()
     parser.add_argument("--num-workers", type=int, default=2, help="number of workers")
@@ -91,12 +119,19 @@ def main(cfg: DictConfig):
             "Number of clients must be less than or equal to ", MAX_CLIENTS
         )
 
-    # wandb experiments
+    # WANDB experiments
 
-    wandb_track = False  # <-needs to be exported to yaml
+    # Enable wandb tracking (True/False)
+    wandb_track = cfg.main.wandb.track
 
+    wandb_config = {
+        "api_key": os.environ["WANDB_API_KEY"],
+        "entity": cfg.main.wandb.entity,
+        "project": cfg.main.wandb.project,
+        "group": cfg.main.wandb.group,
+    }
     if wandb_track:
-        init_wandb(num_workers)
+        init_wandb(num_workers, wandb_config)
 
     # Load data using the data distributor class
     data_distributor = None
@@ -121,7 +156,7 @@ def main(cfg: DictConfig):
     # Spawn server and worker actors
     server = ServerActor.remote(config=cfg.server)
 
-    input_layer_size = 3072
+    input_layer_size = cfg.worker.input_layer_size
     workers = [
         WorkerActor.options(name=f"worker_{i}", namespace="split_learning").remote(
             trainloaders[i], test_data, input_layer_size, config=cfg.worker
@@ -169,7 +204,7 @@ def main(cfg: DictConfig):
     print("Accuracies: ", [result[1] for result in test_results])
     print(f"Average Test Loss: {avg_loss}\nAverage Accuracy: {avg_accuracy}%")
 
-    plot_workers_losses(workers)
+    plot_workers_losses(workers, wandb_track)
 
     if wandb_track:
         wandb.finish()

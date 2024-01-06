@@ -1,3 +1,4 @@
+input_layer_size: 3072 # CIFAR10: 32 * 32 * 3 = 3072, FEMNIST: 28 * 28 = 784
 optimizer: SGD
 lr: 0.01
 momentum: 0.9

@@ -1,6 +1,10 @@
-n_epochs: 15
-n_workers: 4
+n_epochs: 5
+n_workers: 2
 wandb:
-  track: false
-  key: "<your key here>"
+  track: True
+  # set api key from environment variable
+  api_key: "Your API Key"
+  entity: cs_team_b
+  project: local-split-1
+  group: split
 max_clients: 10
