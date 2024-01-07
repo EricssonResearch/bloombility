@@ -40,9 +40,12 @@ def init_wandb(num_workers: int, conf: dict = {}) -> None:
     """
     Initialize wandb for logging.
 
-    params:
-        num_workers: number of workers
-        conf: configuration dictionary (Requires the WANDB_API_KEY environment variable to be set)
+    Args:
+        num_workers (int): Number of workers.
+        conf (dict): Configuration dictionary. Requires the WANDB_API_KEY environment variable to be set.
+
+    Returns:
+        None
     """
     wandb_key = conf["api_key"]
     wandb.login(anonymous="never", key=wandb_key)
@@ -61,13 +64,16 @@ def init_wandb(num_workers: int, conf: dict = {}) -> None:
     )
 
 
-def plot_workers_losses(workers: List, wandb_track: bool = False) -> None:
+def plot_workers_losses(workers: list, wandb_track: bool = False) -> None:
     """
     Plot the losses of each worker.
 
-    params:
-        workers: list of worker actors
-        wandb_track: whether or not to track and visualize experiment performance with Weights and Biases (default: False)
+    Args:
+        workers (list): List of worker actors.
+        wandb_track (bool, optional): Whether or not to track and visualize experiment performance with Weights and Biases. Defaults to False.
+
+    Returns:
+        None
     """
 
     losses_future = [worker.getattr.remote("losses") for worker in workers]
@@ -95,9 +101,20 @@ def plot_workers_losses(workers: List, wandb_track: bool = False) -> None:
 def main(cfg: DictConfig) -> None:
     """
     Main entry point for the split learning module.
+    Performs the following steps:
+        0. Read configuration file, instantiate wandb, and initialize Ray.
+        1. Load data using the data distributor class.
+        2. Instantiate the server and models.
+        3. Spawn server and worker actors.
+        4. Start sequential training and testing processes.
+        5. Aggregate test results.
+        6. Plot the losses of each worker.
 
-    params:
-        cfg: configuration dictionary
+    Args:
+        cfg (dict): Configuration dictionary.
+
+    Returns:
+        None
     """
     # Use argparse to get the arguments from the command line
     parser = argparse.ArgumentParser()
@@ -164,7 +181,8 @@ def main(cfg: DictConfig) -> None:
         for i in range(num_workers)
     ]
 
-    # # Start training on each worker
+    # ==== Start parallel training and testing processes ====#
+    # # Start training on each worker (in parallel)
     # train_futures = [worker.train.remote(server, EPOCHS) for worker in workers]
     # ray.get(train_futures)  # Wait for training to complete
 
@@ -177,6 +195,7 @@ def main(cfg: DictConfig) -> None:
     #     train_future = worker.train.remote(server, EPOCHS)
     #     ray.get(train_future)
 
+    # ==== Start sequential training and testing processes ====#
     # Assuming workers is a list of your WorkerActor instances
     for i in range(len(workers) - 1):
         # Train the current worker

@@ -11,7 +11,7 @@ import ray
 import numpy as np
 import wandb
 
-# Define a dictionary mapping optimizer names to their classes
+# Dictionary mapping optimizer names to their classes
 OPTIMIZERS = {
     "SGD": optim.SGD,
     "Adam": optim.Adam,
@@ -20,7 +20,38 @@ OPTIMIZERS = {
 
 @ray.remote
 class WorkerActor:
-    def __init__(self, train_data, test_data, input_layer_size, wandb=False, config={}):
+    """A class representing a worker in a distributed learning setup. The worker holds the model head and communicates with the server to update the model.
+
+    Attributes:
+        model (Module): The model used for learning.
+        train_data (Dataset): The training data.
+        test_data (Dataset): The testing data.
+        optimizer (Optimizer): The optimizer used for learning.
+        losses (list): A list to store the loss values.
+        wandb (bool): A flag indicating whether to use Weights & Biases for tracking.
+
+    """
+
+    def __init__(
+        self,
+        train_data: torch.utils.data,
+        test_data: torch.utils.data,
+        input_layer_size: int,
+        wandb: bool = False,
+        config: dict = {},
+    ) -> None:
+        """Initializes the WorkerActor with the given data, model input size and optimizer.
+
+        Args:
+            train_data (Dataset): The training data.
+            test_data (Dataset): The testing data.
+            input_layer_size (int): The size of the input layer of the model.
+            wandb (bool, optional): A flag indicating whether to use Weights & Biases for tracking. Defaults to False.
+            config (dict, optional): A configuration dictionary. Defaults to {}.
+        Returns:
+            Object: The WorkerActor object.
+
+        """
         self.model = CNNWorkerModel(input_layer_size)
         self.train_data = train_data
         self.test_data = test_data
@@ -35,10 +66,29 @@ class WorkerActor:
         self.losses = []
         self.wandb = wandb
 
-    def getattr(self, attr):
+    def getattr(self, attr: str) -> object:
+        """Returns the value of the given attribute.
+
+        Args:
+            attr (str): The name of the attribute.
+
+        Returns:
+            The value of the attribute.
+
+        """
         return getattr(self, attr)
 
-    def train(self, server_actor, epochs):
+    def train(self, server_actor: ray.Actor, epochs: int) -> None:
+        """Trains the model using the given server and number of epochs.
+
+        Args:
+            server_actor (ServerActor): The server actor.
+            epochs (int): The number of epochs.
+
+        Returns:
+            None
+
+        """
         for epoch in range(epochs):
             loss = 0.0
             for inputs, labels in self.train_data:
@@ -55,7 +105,17 @@ class WorkerActor:
                 wandb.log({"loss": loss})
             print(f"Epoch {epoch+1} completed, loss: {loss}")
 
-    def test(self, server_actor):
+    def test(self, server_actor: ray.Actor) -> (float, float):
+        """Tests the model using the given server.
+
+        Args:
+            server_actor (ServerActor): The server actor.
+
+        Returns:
+            avg_loss (float): The average loss.
+            accuracy (float): The accuracy.
+
+        """
         total = 0
         correct = 0
         total_loss = 0.0
@@ -72,13 +132,32 @@ class WorkerActor:
         accuracy = 100 * correct / total
         return avg_loss, accuracy
 
-    def get_model(self):
+    def get_model(self) -> Module:
+        """Returns the model.
+
+        Returns:
+            Module (nn.Module): The model.
+
+        """
         return self.model
 
-    # define a function to return the model's weights
-    def get_weights(self):
+    def get_weights(self) -> torch.Tensor:
+        """Returns the weights of the model.
+
+        Returns:
+            torch.Tensor: The weights of the model.
+
+        """
         return self.model.state_dict()
 
-    # define a function to set the model's weights
-    def set_weights(self, weights):
+    def set_weights(self, weights: torch.Tensor) -> nn.Module:
+        """Sets the weights of the model.
+
+        Args:
+            weights (torch.Tensor): The new weights.
+
+        Returns:
+            Module (nn.Module): The model with the new weights.
+        """
         self.model.load_state_dict(weights)
+        return self.model.state_dict()
