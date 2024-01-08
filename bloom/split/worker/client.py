@@ -2,13 +2,9 @@ from typing import List
 from torch import nn
 from torch.nn import Module
 import torch.optim as optim
-from torchvision import transforms
 import torch
-from torch.nn import CrossEntropyLoss
-from bloom.models import CNNWorkerModel
-from bloom import ROOT_DIR
+from bloom.models import Cifar10CNNWorkerModel
 import ray
-import numpy as np
 import wandb
 
 # Dictionary mapping optimizer names to their classes
@@ -52,7 +48,7 @@ class WorkerActor:
             Object: The WorkerActor object.
 
         """
-        self.model = CNNWorkerModel(input_layer_size)
+        self.model = Cifar10CNNWorkerModel(input_layer_size)
         self.train_data = train_data
         self.test_data = test_data
         # Create the optimizer using the configuration parameters

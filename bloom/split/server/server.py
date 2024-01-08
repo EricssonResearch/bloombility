@@ -1,17 +1,12 @@
 from typing import List, Dict, Tuple
 from torch import nn
-from torch.nn import Module
 from torch.optim import Optimizer
 import torch.optim as optim
-from torchvision import transforms
 import torch
-from torch.nn import CrossEntropyLoss
-from bloom.load_data.data_distributor import DATA_DISTRIBUTOR
 
 # Import the model you want to use based on models/Networks.py
-from bloom.models import CNNHeadModel
+from bloom.models import Cifar10CNNHeadModel
 import ray
-import numpy as np
 
 
 # Dictionary mapping optimizer names to their classes
@@ -44,7 +39,7 @@ class ServerActor:
             Object: The ServerActor object.
 
         """
-        self.model = CNNHeadModel()
+        self.model = Cifar10CNNHeadModel()
         self.criterion = nn.CrossEntropyLoss()
         # Create the optimizer using the configuration parameters
         OptimizerClass = OPTIMIZERS[config.optimizer]

@@ -64,13 +64,16 @@ def init_wandb(num_workers: int, conf: dict = {}) -> None:
     )
 
 
-def plot_workers_losses(workers: list, wandb_track: bool = False) -> None:
+def plot_workers_losses(
+    workers: list, wandb_track: bool = False, showPlot: bool = False
+) -> None:
     """
     Plot the losses of each worker.
 
     Args:
         workers (list): List of worker actors.
         wandb_track (bool, optional): Whether or not to track and visualize experiment performance with Weights and Biases. Defaults to False.
+        showPlot (bool, optional): Whether or not to show the plot. Defaults to False.
 
     Returns:
         None
@@ -97,7 +100,8 @@ def plot_workers_losses(workers: list, wandb_track: bool = False) -> None:
     plt.savefig(f"{ROOT_DIR}/split/plots/workers_losses_{timestamp_str}.png")
     if wandb_track:
         wandb.log({"workers_losses": plt})
-    plt.show()
+    if showPlot:
+        plt.show()
 
 
 @hydra.main(config_path=config_path, config_name="base", version_base=None)
@@ -133,6 +137,8 @@ def main(cfg: DictConfig) -> None:
         num_workers = cfg.main.n_workers
     else:
         num_workers = args.num_workers
+
+    showPlot = cfg.main.show_plot
 
     if num_workers > MAX_CLIENTS:
         raise ValueError(
@@ -226,7 +232,7 @@ def main(cfg: DictConfig) -> None:
     print("Accuracies: ", [result[1] for result in test_results])
     print(f"Average Test Loss: {avg_loss}\nAverage Accuracy: {avg_accuracy}%")
 
-    plot_workers_losses(workers, wandb_track)
+    plot_workers_losses(workers, wandb_track, showPlot)
 
     if wandb_track:
         wandb.finish()
