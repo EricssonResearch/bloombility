@@ -25,7 +25,7 @@ class FlowerServer:
     def get_strategy(self):
         return self.strategy
 
-    def start_simulation(self, client_fn, num_clients):
+    def start_simulation(self, client_fn, num_clients, num_cpu, num_gpu):
         history = fl.simulation.start_simulation(
             client_fn=client_fn,  # a function that spawns a particular client
             num_clients=num_clients,  # total number of clients
@@ -34,8 +34,8 @@ class FlowerServer:
             ),  # minimal config for the server loop telling the number of rounds in FL
             strategy=self.strategy,  # our strategy of choice
             client_resources={
-                "num_cpus": 2,
-                "num_gpus": 0.0,
+                "num_cpus": num_cpu,
+                "num_gpus": num_gpu,
             },  # (optional) controls the degree of parallelism of your simulation.
             # Lower resources per client allow for more clients to run concurrently
             # (but need to be set taking into account the compute/memory footprint of your workload)

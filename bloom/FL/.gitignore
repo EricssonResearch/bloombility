@@ -4,5 +4,6 @@ cifar/
 python3-env/
 .conda*
 datasets/
+outputs/
 wandb/
 /outputs
