@@ -91,6 +91,9 @@ def plot_workers_losses(workers: list, wandb_track: bool = False) -> None:
     now = datetime.now()
     # Format as string (YYYYMMDD_HHMMSS format)
     timestamp_str = now.strftime("%Y%m%d_%H%M%S")
+    # Create plots directory if it does not exists
+    if not os.path.exists(f"{ROOT_DIR}/split/plots/"):
+        os.makedirs(f"{ROOT_DIR}/split/plots/")
     plt.savefig(f"{ROOT_DIR}/split/plots/workers_losses_{timestamp_str}.png")
     if wandb_track:
         wandb.log({"workers_losses": plt})
