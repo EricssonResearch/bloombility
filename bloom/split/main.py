@@ -102,13 +102,13 @@ def main(cfg: DictConfig) -> None:
     """
     Main entry point for the split learning module.
     Performs the following steps:
-        0. Read configuration file, instantiate wandb, and initialize Ray.
-        1. Load data using the data distributor class.
-        2. Instantiate the server and models.
-        3. Spawn server and worker actors.
-        4. Start sequential training and testing processes.
-        5. Aggregate test results.
-        6. Plot the losses of each worker.
+    0. Read configuration file, instantiate wandb, and initialize Ray.
+    1. Load data using the data distributor class.
+    2. Instantiate the server and models.
+    3. Spawn server and worker actors.
+    4. Start sequential training and testing processes.
+    5. Aggregate test results.
+    6. Plot the losses of each worker.
 
     Args:
         cfg (dict): Configuration dictionary.
