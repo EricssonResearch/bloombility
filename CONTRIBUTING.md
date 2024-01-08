@@ -46,6 +46,19 @@
 
 After these steps, code formatting and other hooks defined in ```.pre-commit-config.yaml``` should run locally before each commit on modified files. This will modifiy staged files and you might need to restage them again for commit if any issues are fixed.
 
+### Add Submodule
+
+In order to initialize team A's repository as submodule, run the following commands **in the root directory of the project**:
+
+```
+git submodule init
+```
+```
+git submodule update
+```
+
+The submodule is specified in `.gitmodules`.
+
 ### How to use installed package
 
 With editable package structure, you can import the package to anywhere you want as shown below.
