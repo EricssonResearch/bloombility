@@ -78,7 +78,7 @@ class WorkerActor:
         """
         return getattr(self, attr)
 
-    def train(self, server_actor: ray.ObjectRef, epochs: int) -> None:
+    def train(self, server_actor: ray.actor.ActorHandle, epochs: int) -> None:
         """Trains the model using the given server and number of epochs.
 
         Args:
@@ -105,7 +105,7 @@ class WorkerActor:
                 wandb.log({"loss": loss})
             print(f"Epoch {epoch+1} completed, loss: {loss}")
 
-    def test(self, server_actor: ray.ObjectRef) -> (float, float):
+    def test(self, server_actor: ray.actor.ActorHandle) -> (float, float):
         """Tests the model using the given server.
 
         Args:
