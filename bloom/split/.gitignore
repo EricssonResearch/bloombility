@@ -1,0 +1,10 @@
+data/
+logs/
+cifar*
+cifar/
+python3-env/
+.conda*
+datasets/
+outputs/
+wandb/
+plots/

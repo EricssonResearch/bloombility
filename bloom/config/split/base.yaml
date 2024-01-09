@@ -1,0 +1,4 @@
+defaults:
+ - main: main_default
+ - server: server_default
+ - worker: client_default

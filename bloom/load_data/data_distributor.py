@@ -11,6 +11,7 @@ from collections.abc import Iterable
 from typing import Any
 
 from .download_cifar10 import CIFARTEN
+from .download_femnist import FEMNIST
 from bloom import ROOT_DIR
 
 """
@@ -167,7 +168,13 @@ class DATA_DISTRIBUTOR:
         # Split training set into `num_clients` partitions to simulate different local datasets
         # this only works if the result is integers, not floats!
         partition_size = len(trainset) // self.num_clients
-        lengths = [partition_size] * self.num_clients
+        # Calculate leftover data
+        leftover = len(trainset) % self.num_clients
+        # Create lengths list and distribute leftover data
+        lengths = [
+            partition_size + 1 if i < leftover else partition_size
+            for i in range(self.num_clients)
+        ]
         datasets = random_split(trainset, lengths, torch.Generator().manual_seed(42))
 
         # Split into partitions and put int DataLoader
