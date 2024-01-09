@@ -168,3 +168,6 @@ data/
 cifar*
 cifar/
 outputs/
+
+# ignore team_A folder
+team_A/
