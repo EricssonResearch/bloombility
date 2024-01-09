@@ -3,9 +3,10 @@ from torch import nn
 from torch.optim import Optimizer
 import torch.optim as optim
 import torch
+import time
 
 # Import the model you want to use based on models/Networks.py
-from bloom.models import Cifar10CNNHeadModel
+from bloom.models import Cifar10CNNHeadModel, TelecomConv2DServerModel
 import ray
 
 
@@ -39,8 +40,8 @@ class ServerActor:
             Object: The ServerActor object.
 
         """
-        self.model = Cifar10CNNHeadModel()
-        self.criterion = nn.CrossEntropyLoss()
+        self.model = TelecomConv2DServerModel()
+        self.criterion = nn.MSELoss()
         # Create the optimizer using the configuration parameters
         OptimizerClass = OPTIMIZERS[config.optimizer]
         self.optimizer = OptimizerClass(
@@ -62,9 +63,13 @@ class ServerActor:
             Tuple[torch.Tensor, float]: The gradient of the client output and the loss value.
         """
         self.optimizer.zero_grad()
-        labels = labels
+        # labels = labels
         output = self.model(client_output)
-        loss = self.criterion(output, labels)
+        labels = output.reshape(output.shape)
+        # print("output shape: ", output.shape)
+        # print("labels shape: ", labels.shape)
+        # print("output: ", output)
+        loss = self.criterion(labels, output)
         loss.backward(retain_graph=True)
         self.optimizer.step()
         return client_output.grad, loss.item()
@@ -81,10 +86,12 @@ class ServerActor:
             Tuple[float, int, int]: The loss value, the number of correct predictions, and the total number of predictions.
         """
         with torch.no_grad():
-            labels = labels
             output = self.model(client_output)
+            output = output.reshape(labels.shape)
             loss = self.criterion(output, labels)
-            _, predicted = torch.max(output.data, 1)
-            total = labels.size(0)
-            correct = (predicted == labels).sum().item()
-        return loss.item(), correct, total
+            # _, predicted = torch.max(output.data, 1)
+            error = torch.abs(output - labels).sum().data
+            squared_error = ((output - labels) * (output - labels)).sum().data
+            # total = labels.size(0)
+            # correct = (predicted == labels).sum().item()
+        return output, error, squared_error, loss.item()

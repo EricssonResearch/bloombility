@@ -203,3 +203,38 @@ class CNNFemnistHeadModel(nn.Module):
         x = self.pool(self.act(self.conv2(x)))
         x = x.flatten(1)
         return self.out(x)
+
+
+class TelecomConv2DmWorkerModel(nn.Module):
+    def __init__(self, n_filters=24, fsize=2, n_features=5):
+        super(TelecomConv2DmWorkerModel, self).__init__()
+        # Conv2D layer
+        self.conv1 = nn.Conv2d(
+            in_channels=n_features,
+            out_channels=n_filters,
+            kernel_size=(2, fsize),
+            padding="same",
+        )
+
+    def forward(self, x):
+        x = x.reshape(x.shape[0], x.shape[1], x.shape[2], 1)
+        x = torch.relu(self.conv1(x.float()))
+        return x
+
+
+class TelecomConv2DServerModel(nn.Module):
+    def __init__(self, n_filters=24, window_size=6):
+        super(TelecomConv2DServerModel, self).__init__()
+        # Calculate the flattened size after Conv2D
+        self.flattened_size = n_filters * window_size * 1
+        # Dense layers
+        self.fc1 = nn.Linear(self.flattened_size, 1000)
+        self.fc2 = nn.Linear(1000, 100)
+        self.fc3 = nn.Linear(100, 1)
+
+    def forward(self, x):
+        x = x.view(-1, self.flattened_size)  # Flatten
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x

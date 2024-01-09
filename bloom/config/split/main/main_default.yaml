@@ -1,7 +1,7 @@
 n_epochs: 5
 n_workers: 2
 wandb:
-  track: True
+  track: False
   # set api key from environment variable
   api_key: "Your API Key"
   entity: cs_team_b

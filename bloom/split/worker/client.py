@@ -3,9 +3,8 @@ from torch import nn
 from torch.nn import Module
 import torch.optim as optim
 import torch
-from bloom.models import Cifar10CNNWorkerModel
+from bloom.models import Cifar10CNNWorkerModel, TelecomConv2DmWorkerModel
 import ray
-import wandb
 
 # Dictionary mapping optimizer names to their classes
 OPTIMIZERS = {
@@ -48,7 +47,7 @@ class WorkerActor:
             Object: The WorkerActor object.
 
         """
-        self.model = Cifar10CNNWorkerModel(input_layer_size)
+        self.model = TelecomConv2DmWorkerModel()
         self.train_data = train_data
         self.test_data = test_data
         # Create the optimizer using the configuration parameters
@@ -85,21 +84,44 @@ class WorkerActor:
             None
 
         """
+        # device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.model.train(True)
         for epoch in range(epochs):
-            loss = 0.0
-            for inputs, labels in self.train_data:
-                inputs = inputs
+            #     loss = 0.0
+            #     for inputs, labels in self.train_data:
+            #         inputs = inputs
+            #         self.optimizer.zero_grad()
+            #         client_output = self.model(inputs)
+            #         grad_from_server, loss = ray.get(
+            #             server_actor.process_and_update.remote(client_output, labels)
+            #         )
+            #         client_output.backward(grad_from_server)
+            #         self.optimizer.step()
+            #     self.losses.append(loss)
+            #     if self.wandb:
+            #         wandb.log({"loss": loss})
+
+            running_loss = 0.0
+            for batch, (seq, y_label) in enumerate(self.train_data):
+                seq = seq
+                # seq, y_label = seq.to(device), y_label.to(device)
+                # print("seq shape: ", seq.shape)
+                # print("y_label shape: ", y_label.shape)
+                # y_label = y_label.view(-1, 1) # reshape the label
+
                 self.optimizer.zero_grad()
-                client_output = self.model(inputs)
+                client_output = self.model(seq)
                 grad_from_server, loss = ray.get(
-                    server_actor.process_and_update.remote(client_output, labels)
+                    server_actor.process_and_update.remote(client_output, y_label)
                 )
                 client_output.backward(grad_from_server)
                 self.optimizer.step()
-            self.losses.append(loss)
-            if self.wandb:
-                wandb.log({"loss": loss})
-            print(f"Epoch {epoch+1} completed, loss: {loss}")
+
+                _loss = loss
+                running_loss += _loss
+                self.losses.append(_loss)
+                if batch % 1000 == 0:
+                    print(f"Epoch {epoch+1} completed, loss: {running_loss}")
 
     def test(self, server_actor: ray.actor.ActorHandle) -> (float, float):
         """Tests the model using the given server.
@@ -112,20 +134,49 @@ class WorkerActor:
             accuracy (float): The accuracy.
 
         """
-        total = 0
-        correct = 0
+        # self.model.eval()
+        # total = 0
+        # correct = 0
+        # total_loss = 0.0
+        # for inputs, labels in self.test_data:
+        #     inputs = inputs
+        #     client_output = self.model(inputs)
+        #     loss, correct_pred, total_pred = ray.get(
+        #         server_actor.validate.remote(client_output, labels)
+        #     )
+        #     total += total_pred
+        #     correct += correct_pred
+        #     total_loss += loss
+        # avg_loss = total_loss / len(self.test_data)
+        # accuracy = 100 * correct / total
+        # return avg_loss, accuracy
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.model.eval()
+        # total = 0
+        # correct = 0
         total_loss = 0.0
-        for inputs, labels in self.test_data:
-            inputs = inputs
-            client_output = self.model(inputs)
-            loss, correct_pred, total_pred = ray.get(
-                server_actor.validate.remote(client_output, labels)
+        preds = []
+        running_mae, running_mse = 0.0, 0.0
+        for x, y in self.test_data:
+            x, y = x.to(device), y.to(device)
+            # y = y.reshape(x.shape[0], 1).double()
+
+            client_output = self.model(x)
+            pred, error, squared_error, _loss = ray.get(
+                server_actor.validate.remote(client_output, y)
             )
-            total += total_pred
-            correct += correct_pred
-            total_loss += loss
+            preds.append(pred)
+            # total += total_pred
+            # correct += correct_pred
+            total_loss += _loss
+            running_mae += error
+            running_mse += squared_error
+        mae = running_mae / len(self.test_data)
+        mse = running_mse / len(self.test_data)
         avg_loss = total_loss / len(self.test_data)
-        accuracy = 100 * correct / total
+        # accuracy = 100 * correct / total
+        accuracy = 0
+        print(f"MAE value: {mae:.5f}, MSE value: {mse:.5f}")
         return avg_loss, accuracy
 
     def get_model(self) -> Module:

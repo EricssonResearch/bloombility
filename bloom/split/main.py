@@ -24,6 +24,9 @@ import hydra
 from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig, OmegaConf
 
+from gvslearning.utils.util import get_dataset
+from gvslearning.data.dataloader import get_data_loaders
+
 config_path = os.path.join(ROOT_DIR, "config", "split")
 
 os.environ["RAY_DEDUP_LOGS"] = "0"  # Disable deduplication of RAY logs
@@ -31,6 +34,27 @@ import ray
 
 from worker import WorkerActor
 from server import ServerActor
+
+
+gvs_args = {
+    "data": {
+        # "train-data": "`{Root}/bloom/data/telecom/train.pkl`",
+        "train-data": os.path.join(ROOT_DIR, "split", "data", "telecom", "train.pkl"),
+        "eval-data": os.path.join(ROOT_DIR, "split", "data", "telecom", "validate.pkl"),
+        "test-data": os.path.join(ROOT_DIR, "split", "data", "telecom", "test.pkl"),
+    },
+    "period": 5,
+    "output-size": 2,
+}
+
+dataset, validate_dataset, test_dataset = get_dataset(gvs_args)
+
+
+batch_size = 8
+train_loader, eval_loader, test_loader = get_data_loaders(
+    [dataset, validate_dataset, test_dataset], batch_size
+)
+
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 EPOCHS = None
@@ -160,11 +184,11 @@ def main(cfg: DictConfig) -> None:
         init_wandb(num_workers, wandb_config)
 
     # Load data using the data distributor class
-    data_distributor = None
-    if data_distributor is None:
-        data_distributor = DATA_DISTRIBUTOR(num_workers)
-        trainloaders = data_distributor.get_trainloaders()
-        test_data = data_distributor.get_testloader()
+    # data_distributor = None
+    # if data_distributor is None:
+    #     data_distributor = DATA_DISTRIBUTOR(num_workers)
+    #     trainloaders = data_distributor.get_trainloaders()
+    #     test_data = data_distributor.get_testloader()
 
     # Shut down Ray if it has already been initialized
     if ray.is_initialized():
@@ -185,7 +209,7 @@ def main(cfg: DictConfig) -> None:
     input_layer_size = cfg.worker.input_layer_size
     workers = [
         WorkerActor.options(name=f"worker_{i}", namespace="split_learning").remote(
-            trainloaders[i], test_data, input_layer_size, config=cfg.worker
+            train_loader, test_loader, input_layer_size, config=cfg.worker
         )
         for i in range(num_workers)
     ]
@@ -241,3 +265,14 @@ def main(cfg: DictConfig) -> None:
 
 if __name__ == "__main__":
     main()
+
+# Preparing prompt for GitHub Copilot
+"""
+@workspace
+I have a model that I want to train using split learning. So far, the code at bloom/split/ implements split learning for the CIFAR10 dataset.
+Another team (Team A) has worked on telecom data, they have implemented preprocessing and feature engineering. I want to use their data for my model.
+I define model classes in bloom/models/Networks.py. An example of telecom CDR data is in bloom/data/telecom.
+You can find the code for Team A in project_cs_team_b/team_A/ directory, it is added as a submodule to this project.
+I am mainly interested in using their data preprocessor to prepare the data, get the dataloaders, add an LSTM model class and then train the model using the split learning code at bloom/split/.
+
+"""
