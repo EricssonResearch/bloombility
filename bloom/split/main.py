@@ -24,6 +24,9 @@ import hydra
 from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig, OmegaConf
 
+from sklearn.metrics import precision_recall_curve, average_precision_score
+from itertools import cycle
+
 config_path = os.path.join(ROOT_DIR, "config", "split")
 
 os.environ["RAY_DEDUP_LOGS"] = "0"  # Disable deduplication of RAY logs
@@ -81,6 +84,7 @@ def plot_workers_losses(
 
     losses_future = [worker.getattr.remote("losses") for worker in workers]
     losses = ray.get(losses_future)
+    plt.figure(figsize=(6.4 * 2, 4.8 * 2))
     for worker_losses in losses:
         plt.plot(worker_losses)
     plt.xlabel("Epoch")
@@ -100,6 +104,81 @@ def plot_workers_losses(
     plt.savefig(f"{ROOT_DIR}/split/plots/workers_losses_{timestamp_str}.png")
     if wandb_track:
         wandb.log({"workers_losses": plt})
+    if showPlot:
+        plt.show()
+
+
+def plot_precision_recall(
+    y_test,
+    y_score,
+    wandb_track: bool = False,
+    showPlot: bool = False,
+    dataset: str = "CIFAR10",
+):
+    precision = dict()
+    recall = dict()
+    average_precision = dict()
+    n_classes = 10
+
+    for i in range(n_classes):
+        precision[i], recall[i], _ = precision_recall_curve(y_test[:, i], y_score[:, i])
+        average_precision[i] = average_precision_score(y_test[:, i], y_score[:, i])
+
+    # A "micro-average": quantifying score on all classes jointly
+    precision["micro"], recall["micro"], _ = precision_recall_curve(
+        y_test.ravel(), y_score.ravel()
+    )
+    average_precision["micro"] = average_precision_score(
+        y_test, y_score, average="micro"
+    )
+
+    # Plot the micro-averaged Precision-Recall curve
+    plt.figure(figsize=(6.4 * 2, 4.8 * 2))
+    plt.plot(
+        recall["micro"],
+        precision["micro"],
+        color="gold",
+        lw=2,
+        label="micro-average (area = {0:0.2f})" "".format(average_precision["micro"]),
+    )
+
+    # Set colors for each class (10 classes)
+    colors = cycle(
+        [
+            "aqua",
+            "darkorange",
+            "cornflowerblue",
+            "red",
+            "green",
+            "blue",
+            "yellow",
+            "purple",
+            "pink",
+            "black",
+        ]
+    )
+    for i, color in zip(range(n_classes), colors):
+        plt.plot(
+            recall[i],
+            precision[i],
+            color=color,
+            lw=2,
+            label="Class {0} (area = {1:0.2f})" "".format(i, average_precision[i]),
+        )
+
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel("Recall")
+    plt.ylabel("Precision")
+    plt.title("10-class Precision-Recall curve for CIFAR-10")
+    plt.legend(loc="lower right")
+    # Get current time
+    now = datetime.now()
+    # Format as string (YYYYMMDD_HHMMSS format)
+    timestamp_str = now.strftime("%Y%m%d_%H%M%S")
+    plt.savefig(f"{ROOT_DIR}/split/plots/precision_recall_curve_{timestamp_str}.png")
+    if wandb_track:
+        wandb.log({"precision_recall_curve": plt})
     if showPlot:
         plt.show()
 
@@ -226,9 +305,20 @@ def main(cfg: DictConfig) -> None:
 
         # Start testing on each worker and wait for it to complete before moving to the next
         test_results = []
+        y_test = []
+        y_score = []
         for worker in workers:
             test_future = worker.test.remote(server)
             test_results.append(ray.get(test_future))
+            y_test.append(test_results[-1][3])
+            y_score.append(test_results[-1][4])
+        # Convert lists to numpy arrays
+        y_test = np.concatenate(y_test)
+        y_score = np.concatenate(y_score)
+
+        # == Precision-Recall Curve == #
+        if cfg.main.dataset == "CIFAR10":
+            plot_precision_recall(y_test, y_score, wandb_track, showPlot)
 
     # Aggregate test results
     avg_loss = sum([result[0] for result in test_results]) / len(test_results)
