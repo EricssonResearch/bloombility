@@ -58,7 +58,7 @@ plt.xlabel("Number of Datasets")
 plt.ylabel("Experiments")
 
 locs, labels = plt.yticks()  # Get the current locations and labels.
-plt.yticks(np.arange(1, 4, step=1))
+plt.yticks(np.arange(1, num_experiments + 1, step=1))
 
 
 locs, labels = plt.xticks()  # Get the current locations and labels.
