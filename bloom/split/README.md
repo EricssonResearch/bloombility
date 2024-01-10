@@ -1,6 +1,6 @@
 # Split Learning Module
 
-This module is part of the Bloom project and is responsible for implementing Split Learning. Split Learning is a distributed machine learning approach where the model training is split across multiple devices or nodes. Each node only has access to a portion of the model, and the nodes communicate with each other to train the model. In this implementation, worker nodes train the head of the model, and the server node trains the tail end of the model. Worker nodes train sequentially, then send their model weights to the next worker node.
+This module is part of the Bloom project and is responsible for implementing Split Learning. Split Learning is a distributed machine learning approach where the model training is split across multiple devices or nodes. Each node only has access to a portion of the model, and the nodes communicate with each other to train the model. In this implementation, worker nodes train the head of the model, and the server node trains the tail end of the model. Worker nodes train sequentially by default, then send their model weights to the next worker node. It is also possible to train the model in parallel by setting the `parallel_training` configuration option to `True`. Note that in this mode, worker nodes will not send their model weights to the next worker node.
 
 
 ## Modules
@@ -33,7 +33,7 @@ This command will start the split learning process with 2 worker nodes.
 
 ## Configuration
 
-Alternatively, you can configure the Split Learning module by modifying the `bloom/config/split/base.yaml` file. Here are the available configuration options:
+Alternatively, you can configure the Split Learning module by modifying the `bloom/config/split/*.yaml` files. Here are the available configuration options:
 
 - `n_epochs`: The number of training epochs.
 - `n_workers`: The number of worker nodes.
@@ -41,6 +41,8 @@ Alternatively, you can configure the Split Learning module by modifying the `blo
   - `track`: Whether to track the training process with Weights & Biases.
   - `key`: Your Weights & Biases API key.
 - `max_clients`: The maximum number of clients that can connect to the server.
+- `show_plot`: Whether to show the training plot after training is complete. (Default: False)
+- `parallel_training`: Whether to train the model in parallel or sequentially. (Default: False)
 
 ## Output
 

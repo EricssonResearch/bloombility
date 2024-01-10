@@ -9,3 +9,4 @@ wandb:
   group: split
 max_clients: 10
 show_plot: False
+parallel_training: False

@@ -139,6 +139,7 @@ def main(cfg: DictConfig) -> None:
         num_workers = args.num_workers
 
     showPlot = cfg.main.show_plot
+    parallel_training = cfg.main.parallel_training
 
     if num_workers > MAX_CLIENTS:
         raise ValueError(
@@ -190,41 +191,42 @@ def main(cfg: DictConfig) -> None:
         for i in range(num_workers)
     ]
 
-    # ==== Start parallel training and testing processes ====#
-    # # Start training on each worker (in parallel)
-    # train_futures = [worker.train.remote(server, EPOCHS) for worker in workers]
-    # ray.get(train_futures)  # Wait for training to complete
+    if parallel_training:
+        # ==== Parallel training and testing processes (No weight sharing) ====#
+        # Start training on each worker (in parallel)
+        train_futures = [worker.train.remote(server, EPOCHS) for worker in workers]
+        ray.get(train_futures)  # Wait for training to complete
 
-    # # Start testing on each worker
-    # test_futures = [worker.test.remote(server) for worker in workers]
-    # test_results = ray.get(test_futures)
+        # Start testing on each worker
+        test_futures = [worker.test.remote(server) for worker in workers]
+        test_results = ray.get(test_futures)
 
-    # Start training on each worker and wait for it to complete before moving to the next
-    # for worker in workers:
-    #     train_future = worker.train.remote(server, EPOCHS)
-    #     ray.get(train_future)
+        # Start training on each worker and wait for it to complete before moving to the next
+        for worker in workers:
+            train_future = worker.train.remote(server, EPOCHS)
+            ray.get(train_future)
 
-    # ==== Start sequential training and testing processes ====#
-    # Assuming workers is a list of your WorkerActor instances
-    for i in range(len(workers) - 1):
-        # Train the current worker
-        train_future = workers[i].train.remote(server, EPOCHS)
+    else:
+        # ==== Sequential training and testing processes (With weight sharing) ====#
+        for i in range(len(workers) - 1):
+            # Train the current worker
+            train_future = workers[i].train.remote(server, EPOCHS)
+            ray.get(train_future)
+            # Get the weights from the trained worker
+            weights = ray.get(workers[i].get_weights.remote())
+
+            # Set the weights of the next worker to the weights of the current worker
+            workers[i + 1].set_weights.remote(weights)
+
+        # Train the last worker
+        train_future = workers[-1].train.remote(server, EPOCHS)
         ray.get(train_future)
-        # Get the weights from the trained worker
-        weights = ray.get(workers[i].get_weights.remote())
 
-        # Set the weights of the next worker to the weights of the current worker
-        workers[i + 1].set_weights.remote(weights)
-
-    # Train the last worker
-    train_future = workers[-1].train.remote(server, EPOCHS)
-    ray.get(train_future)
-
-    # Start testing on each worker and wait for it to complete before moving to the next
-    test_results = []
-    for worker in workers:
-        test_future = worker.test.remote(server)
-        test_results.append(ray.get(test_future))
+        # Start testing on each worker and wait for it to complete before moving to the next
+        test_results = []
+        for worker in workers:
+            test_future = worker.test.remote(server)
+            test_results.append(ray.get(test_future))
 
     # Aggregate test results
     avg_loss = sum([result[0] for result in test_results]) / len(test_results)
