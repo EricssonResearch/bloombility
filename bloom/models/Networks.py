@@ -143,7 +143,7 @@ class Cifar10CNNHeadModel(nn.Module):
 
 
 class Cifar10CNNWorkerModel(nn.Module):
-    def __init__(self, input_layer_size):
+    def __init__(self):
         super().__init__()
         self.conv1 = nn.Conv2d(3, 6, 5)
         self.pool = nn.MaxPool2d(2, 2)

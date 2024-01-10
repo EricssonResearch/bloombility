@@ -15,6 +15,12 @@ OPTIMIZERS: Dict[str, Optimizer] = {
     "Adam": optim.Adam,
 }
 
+# Dictionary mapping dataset names to their model classes
+MODELS = {
+    "CIFAR10": Cifar10CNNHeadModel,
+    "FEMNIST": CNNFemnistHeadModel,
+}
+
 
 @ray.remote  # Specify the number of GPUs the actor should use
 class ServerActor:
@@ -39,7 +45,8 @@ class ServerActor:
             Object: The ServerActor object.
 
         """
-        self.model = Cifar10CNNHeadModel()
+        ModelClass = MODELS[config.dataset]
+        self.model = ModelClass()
         self.criterion = nn.CrossEntropyLoss()
         # Create the optimizer using the configuration parameters
         OptimizerClass = OPTIMIZERS[config.optimizer]
