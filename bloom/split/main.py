@@ -68,7 +68,10 @@ def init_wandb(num_workers: int, conf: dict = {}) -> None:
 
 
 def plot_workers_losses(
-    workers: list, wandb_track: bool = False, showPlot: bool = False
+    workers: list,
+    wandb_track: bool = False,
+    showPlot: bool = False,
+    dataset: str = "CIFAR10",
 ) -> None:
     """
     Plot the losses of each worker.
@@ -101,7 +104,7 @@ def plot_workers_losses(
     # Create plots directory if it does not exists
     if not os.path.exists(f"{ROOT_DIR}/split/plots/"):
         os.makedirs(f"{ROOT_DIR}/split/plots/")
-    plt.savefig(f"{ROOT_DIR}/split/plots/workers_losses_{timestamp_str}.png")
+    plt.savefig(f"{ROOT_DIR}/split/plots/workers_losses_{dataset}_{timestamp_str}.png")
     if wandb_track:
         wandb.log({"workers_losses": plt})
     if showPlot:
@@ -181,7 +184,7 @@ def plot_precision_recall(
     # Format as string (YYYYMMDD_HHMMSS format)
     timestamp_str = now.strftime("%Y%m%d_%H%M%S")
     plt.savefig(
-        f"{ROOT_DIR}/split/plots/precision_recall_curve_{timestamp_str}_{dataset}.png"
+        f"{ROOT_DIR}/split/plots/precision_recall_curve_{dataset}_{timestamp_str}.png"
     )
     if wandb_track:
         wandb.log({"precision_recall_curve": plt})
@@ -279,6 +282,8 @@ def main(cfg: DictConfig) -> None:
         for i in range(num_workers)
     ]
 
+    y_test = []
+    y_score = []
     if parallel_training:
         # ==== Parallel training and testing processes (No weight sharing) ====#
         # Start training on each worker (in parallel)
@@ -288,11 +293,8 @@ def main(cfg: DictConfig) -> None:
         # Start testing on each worker
         test_futures = [worker.test.remote(server) for worker in workers]
         test_results = ray.get(test_futures)
-
-        # Start training on each worker and wait for it to complete before moving to the next
-        for worker in workers:
-            train_future = worker.train.remote(server, EPOCHS)
-            ray.get(train_future)
+        y_test = [result[3] for result in test_results]
+        y_score = [result[4] for result in test_results]
 
     else:
         # ==== Sequential training and testing processes (With weight sharing) ====#
@@ -312,19 +314,18 @@ def main(cfg: DictConfig) -> None:
 
         # Start testing on each worker and wait for it to complete before moving to the next
         test_results = []
-        y_test = []
-        y_score = []
         for worker in workers:
             test_future = worker.test.remote(server)
             test_results.append(ray.get(test_future))
             y_test.append(test_results[-1][3])
             y_score.append(test_results[-1][4])
-        # Convert lists to numpy arrays
-        y_test = np.concatenate(y_test)
-        y_score = np.concatenate(y_score)
 
-        # == Precision-Recall Curve == #
-        plot_precision_recall(y_test, y_score, wandb_track, showPlot)
+    # Convert lists to numpy arrays
+    y_test = np.concatenate(y_test)
+    y_score = np.concatenate(y_score)
+
+    # == Precision-Recall Curve == #
+    plot_precision_recall(y_test, y_score, wandb_track, showPlot, dataset=DATASET)
 
     # Aggregate test results
     avg_loss = sum([result[0] for result in test_results]) / len(test_results)
