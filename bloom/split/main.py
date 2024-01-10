@@ -118,7 +118,8 @@ def plot_precision_recall(
     precision = dict()
     recall = dict()
     average_precision = dict()
-    n_classes = 10
+    # Number of classes (10 for CIFAR-10, 62 for FEMNIST)
+    n_classes = 10 if dataset == "CIFAR10" else 62
 
     for i in range(n_classes):
         precision[i], recall[i], _ = precision_recall_curve(y_test[:, i], y_score[:, i])
@@ -142,7 +143,7 @@ def plot_precision_recall(
         label="micro-average (area = {0:0.2f})" "".format(average_precision["micro"]),
     )
 
-    # Set colors for each class (10 classes)
+    # Dedine list of colors for plotting
     colors = cycle(
         [
             "aqua",
@@ -157,26 +158,31 @@ def plot_precision_recall(
             "black",
         ]
     )
-    for i, color in zip(range(n_classes), colors):
-        plt.plot(
-            recall[i],
-            precision[i],
-            color=color,
-            lw=2,
-            label="Class {0} (area = {1:0.2f})" "".format(i, average_precision[i]),
-        )
+    if dataset == "CIFAR10":
+        for i, color in zip(range(n_classes), colors):
+            plt.plot(
+                recall[i],
+                precision[i],
+                color=color,
+                lw=2,
+                label="Class {0} (area = {1:0.2f})" "".format(i, average_precision[i]),
+            )
 
     plt.xlim([0.0, 1.0])
     plt.ylim([0.0, 1.05])
     plt.xlabel("Recall")
     plt.ylabel("Precision")
-    plt.title("10-class Precision-Recall curve for CIFAR-10")
+    plt.title(
+        f"Multi-class Precision-Recall curve for {'CIFAR-10' if dataset == 'CIFAR10' else 'FEMNIST'}"
+    )
     plt.legend(loc="lower right")
     # Get current time
     now = datetime.now()
     # Format as string (YYYYMMDD_HHMMSS format)
     timestamp_str = now.strftime("%Y%m%d_%H%M%S")
-    plt.savefig(f"{ROOT_DIR}/split/plots/precision_recall_curve_{timestamp_str}.png")
+    plt.savefig(
+        f"{ROOT_DIR}/split/plots/precision_recall_curve_{timestamp_str}_{dataset}.png"
+    )
     if wandb_track:
         wandb.log({"precision_recall_curve": plt})
     if showPlot:
@@ -220,7 +226,8 @@ def main(cfg: DictConfig) -> None:
     showPlot = cfg.main.show_plot
     parallel_training = cfg.main.parallel_training
     # set Dataset from main config file to server and worker config files
-    cfg.server.dataset = cfg.worker.dataset = cfg.main.dataset
+    DATASET = cfg.main.dataset
+    cfg.server.dataset = cfg.worker.dataset = DATASET
 
     if num_workers > MAX_CLIENTS:
         raise ValueError(
@@ -244,7 +251,7 @@ def main(cfg: DictConfig) -> None:
     # Load data using the data distributor class
     data_distributor = None
     if data_distributor is None:
-        data_distributor = DATA_DISTRIBUTOR(num_workers, dataset=cfg.main.dataset)
+        data_distributor = DATA_DISTRIBUTOR(num_workers, dataset=DATASET)
         trainloaders = data_distributor.get_trainloaders()
         test_data = data_distributor.get_testloader()
 
@@ -317,8 +324,7 @@ def main(cfg: DictConfig) -> None:
         y_score = np.concatenate(y_score)
 
         # == Precision-Recall Curve == #
-        if cfg.main.dataset == "CIFAR10":
-            plot_precision_recall(y_test, y_score, wandb_track, showPlot)
+        plot_precision_recall(y_test, y_score, wandb_track, showPlot)
 
     # Aggregate test results
     avg_loss = sum([result[0] for result in test_results]) / len(test_results)
@@ -329,7 +335,7 @@ def main(cfg: DictConfig) -> None:
     print(f"Average Test Loss: {avg_loss}\nAverage Accuracy: {avg_accuracy}%")
     print(f"Average F1 Score: {avg_f1}")
 
-    plot_workers_losses(workers, wandb_track, showPlot)
+    plot_workers_losses(workers, wandb_track, showPlot, dataset=DATASET)
 
     if wandb_track:
         wandb.log(
