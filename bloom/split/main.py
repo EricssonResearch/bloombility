@@ -183,6 +183,8 @@ def plot_precision_recall(
     now = datetime.now()
     # Format as string (YYYYMMDD_HHMMSS format)
     timestamp_str = now.strftime("%Y%m%d_%H%M%S")
+    if not os.path.exists(f"{ROOT_DIR}/split/plots/"):
+        os.makedirs(f"{ROOT_DIR}/split/plots/")
     plt.savefig(
         f"{ROOT_DIR}/split/plots/precision_recall_curve_{dataset}_{timestamp_str}.png"
     )
