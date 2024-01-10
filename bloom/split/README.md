@@ -25,15 +25,15 @@ The models are trained on the following datasets:
 
 To run the Split Learning module, use the following command:
 
-\`\`\`sh
+```
 python bloom/split/main.py --num-workers 2
-\`\`\`
+```
 
 This command will start the split learning process with 2 worker nodes.
 
 ## Configuration
 
-Alternatively, you can configure the Split Learning module by modifying the `bloom/config/split/*.yaml` files. Here are the available configuration options:
+Alternatively, you can configure the Split Learning module by modifying the `bloom/config/split/main/main_default.yaml` files. Here are the available configuration options:
 
 - `n_epochs`: The number of training epochs.
 - `n_workers`: The number of worker nodes.
@@ -43,6 +43,8 @@ Alternatively, you can configure the Split Learning module by modifying the `blo
 - `max_clients`: The maximum number of clients that can connect to the server.
 - `show_plot`: Whether to show the training plot after training is complete. (Default: False)
 - `parallel_training`: Whether to train the model in parallel or sequentially. (Default: False)
+
+Similarly, Worker and Server nodes can be configured by modifying the `bloom/config/split/worker/client_default.yaml` and `bloom/config/split/server/server_default.yaml` files respectively. Here are the available configuration options:
 
 ## Output
 

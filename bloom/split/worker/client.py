@@ -3,7 +3,7 @@ from torch import nn
 from torch.nn import Module
 import torch.optim as optim
 import torch
-from bloom.models import Cifar10CNNWorkerModel
+from bloom.models import Cifar10CNNWorkerModel, CNNFemnistWorkerModel
 import ray
 import wandb
 
@@ -11,6 +11,12 @@ import wandb
 OPTIMIZERS = {
     "SGD": optim.SGD,
     "Adam": optim.Adam,
+}
+
+# Dictionary mapping dataset names to their model classes
+MODELS = {
+    "CIFAR10": Cifar10CNNWorkerModel,
+    "FEMNIST": CNNFemnistWorkerModel,
 }
 
 
@@ -48,7 +54,8 @@ class WorkerActor:
             Object: The WorkerActor object.
 
         """
-        self.model = Cifar10CNNWorkerModel(input_layer_size)
+        ModelClass = MODELS[config.dataset]
+        self.model = ModelClass(input_layer_size)
         self.train_data = train_data
         self.test_data = test_data
         # Create the optimizer using the configuration parameters

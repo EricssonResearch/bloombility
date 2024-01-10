@@ -5,7 +5,7 @@ import torch.optim as optim
 import torch
 
 # Import the model you want to use based on models/Networks.py
-from bloom.models import Cifar10CNNHeadModel
+from bloom.models import Cifar10CNNHeadModel, CNNFemnistHeadModel
 import ray
 
 

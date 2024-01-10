@@ -140,6 +140,8 @@ def main(cfg: DictConfig) -> None:
 
     showPlot = cfg.main.show_plot
     parallel_training = cfg.main.parallel_training
+    # set Dataset from main config file to server and worker config files
+    cfg.server.dataset = cfg.worker.dataset = cfg.main.dataset
 
     if num_workers > MAX_CLIENTS:
         raise ValueError(
@@ -163,7 +165,7 @@ def main(cfg: DictConfig) -> None:
     # Load data using the data distributor class
     data_distributor = None
     if data_distributor is None:
-        data_distributor = DATA_DISTRIBUTOR(num_workers)
+        data_distributor = DATA_DISTRIBUTOR(num_workers, dataset=cfg.main.dataset)
         trainloaders = data_distributor.get_trainloaders()
         test_data = data_distributor.get_testloader()
 
