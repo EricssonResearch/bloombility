@@ -242,6 +242,14 @@ def main(cfg: DictConfig) -> None:
     plot_workers_losses(workers, wandb_track, showPlot)
 
     if wandb_track:
+        wandb.log(
+            {
+                "avg_loss": avg_loss,
+                "avg_accuracy": avg_accuracy,
+                "accuracies": [result[1] for result in test_results],
+                "f1_scores": [result[2] for result in test_results],
+            }
+        )
         wandb.finish()
     ray.shutdown()
 
