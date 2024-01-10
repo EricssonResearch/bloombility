@@ -87,4 +87,4 @@ class ServerActor:
             _, predicted = torch.max(output.data, 1)
             total = labels.size(0)
             correct = (predicted == labels).sum().item()
-        return loss.item(), correct, total
+        return loss.item(), correct, total, predicted

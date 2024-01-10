@@ -6,6 +6,8 @@ import torch
 from bloom.models import Cifar10CNNWorkerModel, CNNFemnistWorkerModel
 import ray
 import wandb
+from sklearn.metrics import f1_score
+
 
 # Dictionary mapping optimizer names to their classes
 OPTIMIZERS = {
@@ -122,18 +124,23 @@ class WorkerActor:
         total = 0
         correct = 0
         total_loss = 0.0
+        y_true = []
+        y_pred = []
         for inputs, labels in self.test_data:
             inputs = inputs
             client_output = self.model(inputs)
-            loss, correct_pred, total_pred = ray.get(
+            loss, correct_pred, total_pred, predicted = ray.get(
                 server_actor.validate.remote(client_output, labels)
             )
             total += total_pred
             correct += correct_pred
             total_loss += loss
+            y_true.extend(labels.tolist())
+            y_pred.extend(predicted.tolist())
         avg_loss = total_loss / len(self.test_data)
         accuracy = 100 * correct / total
-        return avg_loss, accuracy
+        f1 = f1_score(y_true, y_pred, average="weighted")
+        return avg_loss, accuracy, f1
 
     def get_model(self) -> Module:
         """Returns the model.

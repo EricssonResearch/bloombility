@@ -1,4 +1,4 @@
-dataset: FEMNIST # [CIFAR10, FEMNIST]
+dataset: CIFAR10 # [CIFAR10, FEMNIST]
 n_epochs: 5
 n_workers: 2
 wandb:

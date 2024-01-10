@@ -233,8 +233,11 @@ def main(cfg: DictConfig) -> None:
     # Aggregate test results
     avg_loss = sum([result[0] for result in test_results]) / len(test_results)
     avg_accuracy = sum([result[1] for result in test_results]) / len(test_results)
+    avg_f1 = sum([result[2] for result in test_results]) / len(test_results)
     print("Accuracies: ", [result[1] for result in test_results])
+    print("F1 Scores: ", [result[2] for result in test_results])
     print(f"Average Test Loss: {avg_loss}\nAverage Accuracy: {avg_accuracy}%")
+    print(f"Average F1 Score: {avg_f1}")
 
     plot_workers_losses(workers, wandb_track, showPlot)
 
