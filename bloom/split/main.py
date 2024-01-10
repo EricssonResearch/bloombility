@@ -244,10 +244,11 @@ def main(cfg: DictConfig) -> None:
     if wandb_track:
         wandb.log(
             {
-                "avg_loss": avg_loss,
-                "avg_accuracy": avg_accuracy,
                 "accuracies": [result[1] for result in test_results],
                 "f1_scores": [result[2] for result in test_results],
+                "avg_loss": avg_loss,
+                "avg_accuracy": avg_accuracy,
+                "avg_f1": avg_f1,
             }
         )
         wandb.finish()
