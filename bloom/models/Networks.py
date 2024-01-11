@@ -125,7 +125,7 @@ class FedAvgCNN(nn.Module):
 
 
 # Model from Kosta's tutorial on split learning
-class CNNHeadModel(nn.Module):
+class Cifar10CNNHeadModel(nn.Module):
     def __init__(self):
         super().__init__()
         self.fc1 = nn.Linear(16 * 5 * 5, 120)
@@ -142,8 +142,8 @@ class CNNHeadModel(nn.Module):
         return output
 
 
-class CNNWorkerModel(nn.Module):
-    def __init__(self, input_layer_size):
+class Cifar10CNNWorkerModel(nn.Module):
+    def __init__(self):
         super().__init__()
         self.conv1 = nn.Conv2d(3, 6, 5)
         self.pool = nn.MaxPool2d(2, 2)
@@ -160,7 +160,7 @@ class CNNWorkerModel(nn.Module):
         return output
 
 
-# define class of ResNet18 model for CIFAR10 dataset
+# ResNet18 model for CIFAR10 dataset
 class ResNet18(nn.Module):
     def __init__(self, num_classes=10):
         super(ResNet18, self).__init__()
@@ -177,7 +177,7 @@ class ResNet18(nn.Module):
         return self.model(x)
 
 
-# Split CNNFemnist into worker and head model
+# CNN model for FEMNIST dataset
 class CNNFemnistWorkerModel(nn.Module):
     def __init__(self):
         super().__init__()
@@ -191,7 +191,6 @@ class CNNFemnistWorkerModel(nn.Module):
         return output
 
 
-# divide femnist into worker and head model
 class CNNFemnistHeadModel(nn.Module):
     def __init__(self):
         super().__init__()

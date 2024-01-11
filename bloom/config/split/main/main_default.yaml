@@ -1,10 +1,13 @@
+dataset: CIFAR10 # [CIFAR10, FEMNIST]
 n_epochs: 5
 n_workers: 2
 wandb:
-  track: True
+  track: False
   # set api key from environment variable
   api_key: "Your API Key"
   entity: cs_team_b
   project: local-split-1
   group: split
 max_clients: 10
+show_plot: False
+parallel_training: False
