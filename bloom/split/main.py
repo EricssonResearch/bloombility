@@ -24,6 +24,9 @@ import hydra
 from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig, OmegaConf
 
+from sklearn.metrics import precision_recall_curve, average_precision_score
+from itertools import cycle
+
 config_path = os.path.join(ROOT_DIR, "config", "split")
 
 os.environ["RAY_DEDUP_LOGS"] = "0"  # Disable deduplication of RAY logs
@@ -65,7 +68,10 @@ def init_wandb(num_workers: int, conf: dict = {}) -> None:
 
 
 def plot_workers_losses(
-    workers: list, wandb_track: bool = False, showPlot: bool = False
+    workers: list,
+    wandb_track: bool = False,
+    showPlot: bool = False,
+    dataset: str = "CIFAR10",
 ) -> None:
     """
     Plot the losses of each worker.
@@ -81,6 +87,7 @@ def plot_workers_losses(
 
     losses_future = [worker.getattr.remote("losses") for worker in workers]
     losses = ray.get(losses_future)
+    plt.figure(figsize=(6.4 * 2, 4.8 * 2))
     for worker_losses in losses:
         plt.plot(worker_losses)
     plt.xlabel("Epoch")
@@ -97,9 +104,92 @@ def plot_workers_losses(
     # Create plots directory if it does not exists
     if not os.path.exists(f"{ROOT_DIR}/split/plots/"):
         os.makedirs(f"{ROOT_DIR}/split/plots/")
-    plt.savefig(f"{ROOT_DIR}/split/plots/workers_losses_{timestamp_str}.png")
+    plt.savefig(f"{ROOT_DIR}/split/plots/workers_losses_{dataset}_{timestamp_str}.png")
     if wandb_track:
         wandb.log({"workers_losses": plt})
+    if showPlot:
+        plt.show()
+
+
+def plot_precision_recall(
+    y_test,
+    y_score,
+    wandb_track: bool = False,
+    showPlot: bool = False,
+    dataset: str = "CIFAR10",
+):
+    precision = dict()
+    recall = dict()
+    average_precision = dict()
+    # Number of classes (10 for CIFAR-10, 62 for FEMNIST)
+    n_classes = 10 if dataset == "CIFAR10" else 62
+
+    for i in range(n_classes):
+        precision[i], recall[i], _ = precision_recall_curve(y_test[:, i], y_score[:, i])
+        average_precision[i] = average_precision_score(y_test[:, i], y_score[:, i])
+
+    # A "micro-average": quantifying score on all classes jointly
+    precision["micro"], recall["micro"], _ = precision_recall_curve(
+        y_test.ravel(), y_score.ravel()
+    )
+    average_precision["micro"] = average_precision_score(
+        y_test, y_score, average="micro"
+    )
+
+    # Plot the micro-averaged Precision-Recall curve
+    plt.figure(figsize=(6.4 * 2, 4.8 * 2))
+    plt.plot(
+        recall["micro"],
+        precision["micro"],
+        color="gold",
+        lw=2,
+        label="micro-average (area = {0:0.2f})" "".format(average_precision["micro"]),
+    )
+
+    # Dedine list of colors for plotting
+    colors = cycle(
+        [
+            "aqua",
+            "darkorange",
+            "cornflowerblue",
+            "red",
+            "green",
+            "blue",
+            "yellow",
+            "purple",
+            "pink",
+            "black",
+        ]
+    )
+    if dataset == "CIFAR10":
+        for i, color in zip(range(n_classes), colors):
+            plt.plot(
+                recall[i],
+                precision[i],
+                color=color,
+                lw=2,
+                label="Class {0} (area = {1:0.2f})" "".format(i, average_precision[i]),
+            )
+
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel("Recall")
+    plt.ylabel("Precision")
+    plt.title(
+        f"Multi-class Precision-Recall curve for {'CIFAR-10' if dataset == 'CIFAR10' else 'FEMNIST'}"
+    )
+    plt.legend(loc="lower right")
+    # Get current time
+    now = datetime.now()
+    # Format as string (YYYYMMDD_HHMMSS format)
+    timestamp_str = now.strftime("%Y%m%d_%H%M%S")
+    if not os.path.exists(f"{ROOT_DIR}/split/plots/"):
+        os.makedirs(f"{ROOT_DIR}/split/plots/")
+    plt.savefig(
+        f"{ROOT_DIR}/split/plots/precision_recall_curve_{dataset}_{timestamp_str}.png"
+    )
+    if wandb_track:
+        wandb.log({"precision_recall_curve": plt})
     if showPlot:
         plt.show()
 
@@ -139,6 +229,10 @@ def main(cfg: DictConfig) -> None:
         num_workers = args.num_workers
 
     showPlot = cfg.main.show_plot
+    parallel_training = cfg.main.parallel_training
+    # set Dataset from main config file to server and worker config files
+    DATASET = cfg.main.dataset
+    cfg.server.dataset = cfg.worker.dataset = DATASET
 
     if num_workers > MAX_CLIENTS:
         raise ValueError(
@@ -162,7 +256,7 @@ def main(cfg: DictConfig) -> None:
     # Load data using the data distributor class
     data_distributor = None
     if data_distributor is None:
-        data_distributor = DATA_DISTRIBUTOR(num_workers)
+        data_distributor = DATA_DISTRIBUTOR(num_workers, dataset=DATASET)
         trainloaders = data_distributor.get_trainloaders()
         test_data = data_distributor.get_testloader()
 
@@ -190,51 +284,72 @@ def main(cfg: DictConfig) -> None:
         for i in range(num_workers)
     ]
 
-    # ==== Start parallel training and testing processes ====#
-    # # Start training on each worker (in parallel)
-    # train_futures = [worker.train.remote(server, EPOCHS) for worker in workers]
-    # ray.get(train_futures)  # Wait for training to complete
+    y_test = []
+    y_score = []
+    if parallel_training:
+        # ==== Parallel training and testing processes (No weight sharing) ====#
+        # Start training on each worker (in parallel)
+        train_futures = [worker.train.remote(server, EPOCHS) for worker in workers]
+        ray.get(train_futures)  # Wait for training to complete
 
-    # # Start testing on each worker
-    # test_futures = [worker.test.remote(server) for worker in workers]
-    # test_results = ray.get(test_futures)
+        # Start testing on each worker
+        test_futures = [worker.test.remote(server) for worker in workers]
+        test_results = ray.get(test_futures)
+        y_test = [result[3] for result in test_results]
+        y_score = [result[4] for result in test_results]
 
-    # Start training on each worker and wait for it to complete before moving to the next
-    # for worker in workers:
-    #     train_future = worker.train.remote(server, EPOCHS)
-    #     ray.get(train_future)
+    else:
+        # ==== Sequential training and testing processes (With weight sharing) ====#
+        for i in range(len(workers) - 1):
+            # Train the current worker
+            train_future = workers[i].train.remote(server, EPOCHS)
+            ray.get(train_future)
+            # Get the weights from the trained worker
+            weights = ray.get(workers[i].get_weights.remote())
 
-    # ==== Start sequential training and testing processes ====#
-    # Assuming workers is a list of your WorkerActor instances
-    for i in range(len(workers) - 1):
-        # Train the current worker
-        train_future = workers[i].train.remote(server, EPOCHS)
+            # Set the weights of the next worker to the weights of the current worker
+            workers[i + 1].set_weights.remote(weights)
+
+        # Train the last worker
+        train_future = workers[-1].train.remote(server, EPOCHS)
         ray.get(train_future)
-        # Get the weights from the trained worker
-        weights = ray.get(workers[i].get_weights.remote())
 
-        # Set the weights of the next worker to the weights of the current worker
-        workers[i + 1].set_weights.remote(weights)
+        # Start testing on each worker and wait for it to complete before moving to the next
+        test_results = []
+        for worker in workers:
+            test_future = worker.test.remote(server)
+            test_results.append(ray.get(test_future))
+            y_test.append(test_results[-1][3])
+            y_score.append(test_results[-1][4])
 
-    # Train the last worker
-    train_future = workers[-1].train.remote(server, EPOCHS)
-    ray.get(train_future)
+    # Convert lists to numpy arrays
+    y_test = np.concatenate(y_test)
+    y_score = np.concatenate(y_score)
 
-    # Start testing on each worker and wait for it to complete before moving to the next
-    test_results = []
-    for worker in workers:
-        test_future = worker.test.remote(server)
-        test_results.append(ray.get(test_future))
+    # == Precision-Recall Curve == #
+    plot_precision_recall(y_test, y_score, wandb_track, showPlot, dataset=DATASET)
 
     # Aggregate test results
     avg_loss = sum([result[0] for result in test_results]) / len(test_results)
     avg_accuracy = sum([result[1] for result in test_results]) / len(test_results)
+    avg_f1 = sum([result[2] for result in test_results]) / len(test_results)
     print("Accuracies: ", [result[1] for result in test_results])
+    print("F1 Scores: ", [result[2] for result in test_results])
     print(f"Average Test Loss: {avg_loss}\nAverage Accuracy: {avg_accuracy}%")
+    print(f"Average F1 Score: {avg_f1}")
 
-    plot_workers_losses(workers, wandb_track, showPlot)
+    plot_workers_losses(workers, wandb_track, showPlot, dataset=DATASET)
 
     if wandb_track:
+        wandb.log(
+            {
+                "accuracies": [result[1] for result in test_results],
+                "f1_scores": [result[2] for result in test_results],
+                "avg_loss": avg_loss,
+                "avg_accuracy": avg_accuracy,
+                "avg_f1": avg_f1,
+            }
+        )
         wandb.finish()
     ray.shutdown()
 

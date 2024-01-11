@@ -5,7 +5,7 @@ import torch.optim as optim
 import torch
 
 # Import the model you want to use based on models/Networks.py
-from bloom.models import Cifar10CNNHeadModel
+from bloom.models import Cifar10CNNHeadModel, CNNFemnistHeadModel
 import ray
 
 
@@ -13,6 +13,12 @@ import ray
 OPTIMIZERS: Dict[str, Optimizer] = {
     "SGD": optim.SGD,
     "Adam": optim.Adam,
+}
+
+# Dictionary mapping dataset names to their model classes
+MODELS = {
+    "CIFAR10": Cifar10CNNHeadModel,
+    "FEMNIST": CNNFemnistHeadModel,
 }
 
 
@@ -39,7 +45,8 @@ class ServerActor:
             Object: The ServerActor object.
 
         """
-        self.model = Cifar10CNNHeadModel()
+        ModelClass = MODELS[config.dataset]
+        self.model = ModelClass()
         self.criterion = nn.CrossEntropyLoss()
         # Create the optimizer using the configuration parameters
         OptimizerClass = OPTIMIZERS[config.optimizer]
@@ -87,4 +94,4 @@ class ServerActor:
             _, predicted = torch.max(output.data, 1)
             total = labels.size(0)
             correct = (predicted == labels).sum().item()
-        return loss.item(), correct, total
+        return loss.item(), correct, total, predicted, output
