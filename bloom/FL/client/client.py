@@ -4,7 +4,7 @@ from collections import OrderedDict
 import torch
 import flwr as fl
 import wandb
-from sklearn.metrics import f1_score
+from sklearn.metrics import f1_score, precision_score, recall_score
 
 from bloom import models
 
@@ -55,7 +55,7 @@ def train(
             loss.backward()
             optimizer.step()
 
-        train_loss, train_acc, train_f1 = test(
+        train_loss, train_acc, train_f1, precision, recall = test(
             net, trainloader
         )  # get loss and acc on train set
 
@@ -96,7 +96,10 @@ def test(
     """
     criterion = torch.nn.CrossEntropyLoss()
     correct, total, loss = 0, 0, 0.0
-    list_of_f1s = []
+
+    labels_list = []
+    pred_list = []
+
     net.eval()  # set to test mode
     with torch.no_grad():
         for data in testloader:
@@ -106,19 +109,28 @@ def test(
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
-            f1_sc = f1_score(labels, predicted, average="weighted")
-            list_of_f1s.append(f1_sc)
+            labels_list.extend(labels)
+            pred_list.extend(predicted)
     accuracy = correct / total
-    averaged_f1 = sum(list_of_f1s) / len(list_of_f1s)
+
+    f1 = f1_score(labels_list, pred_list, average="macro")
+    precision = precision_score(labels_list, pred_list, average="macro")
+    recall = recall_score(labels_list, pred_list, average="macro")
 
     if CLIENT_REPORTING:
         wandb.log(
-            {"test_loss": loss, "test_accuracy": accuracy, "averaged_f1": averaged_f1}
+            {
+                "test_loss": loss,
+                "test_accuracy": accuracy,
+                "test_f1": f1,
+                "test_precision": precision,
+                "test_recall": recall,
+            }
         )
 
-    print(f"average f1: {averaged_f1}")
+    print(f"f1: {f1}, precision: {precision}, recall: {recall}")
 
-    return loss, accuracy, averaged_f1
+    return loss, accuracy, f1, precision, recall
 
 
 class FlowerClient(fl.client.NumPyClient):
@@ -159,11 +171,16 @@ class FlowerClient(fl.client.NumPyClient):
 
     def evaluate(self, parameters, config):
         self.set_parameters(parameters)
-        loss, accuracy, f1 = test(self.net, self.testloader)
+        loss, accuracy, f1, precision, recall = test(self.net, self.testloader)
         return (
             float(loss),
             self.num_examples["testset"],
-            {"accuracy": float(accuracy), "f1": f1},
+            {
+                "accuracy": float(accuracy),
+                "f1": f1,
+                "precision": precision,
+                "recall": recall,
+            },
         )
 
 
