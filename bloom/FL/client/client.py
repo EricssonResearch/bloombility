@@ -34,6 +34,8 @@ def main():
     parser.add_argument("--test", required=True, type=str, dest="test_path")
     args = parser.parse_args()
 
+    print(f'Device: {DEVICE}')
+
     cfg_path = os.path.join(CONFIG_PATH, args.config_file)
     with open(cfg_path, "r") as cfg_file:
         cfg = yaml.safe_load(cfg_file)
@@ -109,7 +111,7 @@ def test(
 class FlowerClient(fl.client.NumPyClient):
     def __init__(self, batch_size, num_epochs):
         # super().__init__()
-        self.net = models.FedAvgCNN().to(DEVICE)
+        self.net = models.CNNFemnist().to(DEVICE)
 
         self.batch_size = batch_size
         self.num_epochs = num_epochs

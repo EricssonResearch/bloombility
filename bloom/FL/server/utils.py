@@ -4,7 +4,7 @@ import numpy as np
 import wandb
 
 
-IS_WANDB_TRACK = False  # <-needs to be exported to yaml
+IS_WANDB_TRACK = True  # <-needs to be exported to yaml
 
 
 # function to get the strategy based on the name

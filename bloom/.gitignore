@@ -1,3 +1,4 @@
 /data
-/wandb
+wandb/
 FEMNIST/
+alvis-runs/

@@ -57,7 +57,7 @@ def main():
         wandb.init(
             # set the wandb project where this run will be logged
             entity="cs_team_b",
-            project="bloomnet_visualization",
+            project="FEMNIST_num_clients",
             # track hyperparameters and run metadata
             config={
                 "method": "federated",
@@ -79,7 +79,7 @@ def main():
 class FlowerServer:
     def __init__(self, strategy: str, num_rounds: int, wandb_track: bool) -> None:
         # Create an instance of the model and get the parameters
-        self.params = get_parameters(models.FedAvgCNN())
+        self.params = get_parameters(models.CNNFemnist())
         # Pass parameters to the Strategy for server-side parameter initialization
         self.strategy = define_strategy(strategy, wandb_track, self.params)
         self.num_rounds = num_rounds
