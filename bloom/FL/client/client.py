@@ -102,7 +102,7 @@ def train(
 
 def test(
     net: torch.nn.Module, testloader: torch.utils.data.DataLoader
-) -> tuple[float, float]:
+):
     """Validate the network on the entire test set.
 
     Calculates classification accuracy & loss.
@@ -184,6 +184,7 @@ class FlowerClient(fl.client.NumPyClient):
                 "f1": f1,
                 "precision": precision,
                 "recall": recall,
+                "loss": loss,
             },
         )
 

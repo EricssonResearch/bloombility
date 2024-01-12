@@ -159,8 +159,8 @@ def plot_precision_recall(precision, recall, examples):
     now = datetime.now()
     # Format as string (YYYYMMDD_HHMMSS format)
     timestamp_str = now.strftime("%Y%m%d_%H%M%S")
-    if not os.path.exists(f"{ROOT_DIR}/split/plots/"):
-        os.makedirs(f"{ROOT_DIR}/split/plots/")
-    plt.savefig(f"{ROOT_DIR}/split/plots/precision_recall_curve_{timestamp_str}.png")
+    if not os.path.exists(f"{ROOT_DIR}/FL/plots/"):
+        os.makedirs(f"{ROOT_DIR}/FL/plots/")
+    plt.savefig(f"{ROOT_DIR}/FL/plots/precision_recall_curve_{timestamp_str}.png")
     if IS_WANDB_TRACK:
-        wandb.log({"precision_recall_curve": plt})
+        wandb.log({"precision_recall_curve": wandb.Image(plt)})
