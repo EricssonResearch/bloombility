@@ -4,6 +4,7 @@ import datetime
 
 import math
 import numpy as np
+import matplotlib.pyplot as plt
 import torch
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader, random_split, Dataset
@@ -109,6 +110,7 @@ def split_non_iid_clients(
 
     # from here, depends on use case #
 
+    # dirichilet implementation
     all_distributions = []
 
     # get distribution per class and client
@@ -155,6 +157,17 @@ def split_non_iid_clients(
             check_sum += absolute_amounts[j][i]
         print(f"Max was {counts[i]} got {check_sum}")
 
+    make_graph(absolute_amounts, 4, 10)
+
+    # now, split actual dataset: for each per-class dataset, split it into chunks based on absolute_amounts
+    # then re-arrange them to be per-client instead of per-class
+
+    # datasets = random_split(trainset, rand_nums, torch.Generator().manual_seed(42))
+
+    # also need to adjust the plotting funct
+
+    # n classes implementation
+
     # for each client, get a list of the indices we want to have
     count = 0
     all_indices = []
@@ -179,6 +192,39 @@ def split_non_iid_clients(
     testloader = DataLoader(testset, batch_size=batch_size)
 
     return trainloader_list, testloader
+
+
+def make_graph(dist, num_clients, num_classes):
+    """Note: throws warning about being unable to plot -Inf, but plots nothing in that place instead, which is fine"""
+    max_dataset_len = 0
+    for row in range(num_clients):
+        # Get the dataset sizes for the current experiment
+        dataset_sizes = dist[row]
+
+        log_sizes = np.log(dataset_sizes)
+
+        # the dataset sizes become size of each dot on the plot.
+        # X and y positions are determined by experiment run number and number of datasets in the experiment
+        height = [row + 1] * len(dataset_sizes)
+        positions = [i + 1 for i, _ in enumerate(dataset_sizes)]
+        if len(dataset_sizes) > max_dataset_len:
+            max_dataset_len = len(dataset_sizes)
+
+        # add the line of dots representing one experiment to the plot
+        plt.scatter(positions, height, s=log_sizes * 10, c=positions)
+
+    plt.title("Number of elements per class and client")
+    # Set the x and y axis labels
+    plt.xlabel("Classes")
+    plt.ylabel("Clients")
+
+    locs, labels = plt.yticks()  # Get the current locations and labels.
+    plt.yticks(np.arange(1, num_clients + 1, step=1))
+
+    locs, labels = plt.xticks()  # Get the current locations and labels.
+    plt.xticks(np.arange(1, max_dataset_len + 1, step=1))  # Set label locations.
+    # Show the plot
+    plt.show()
 
 
 def main():
