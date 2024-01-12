@@ -126,6 +126,8 @@ def weighted_average(metrics: dict) -> dict:
                 "acc": sum(acc) / sum(examples),
                 "f1": sum(f1_score) / sum(examples),
                 "loss": sum(loss) / sum(examples),
+                "precision": sum(precision) / sum(examples),
+                "recall": sum(recall) /sum(examples)
             }
         )
 
