@@ -3,21 +3,64 @@
 import flwr as fl
 from typing import List
 import numpy as np
-from .utils import get_parameters, define_strategy, weighted_average
-
+from bloom.FL.server.utils import get_parameters, define_strategy
+import wandb
 from bloom import models
+from bloom import ROOT_DIR
+import sys
+import logging
+
+
+def main():
+    # PARAMS
+    # Number of rounds of federated learning
+    n_rounds = int(sys.argv[1])
+
+    # Strategies available:  ["FedAvg", "FedAdam", "FedYogi", "FedAdagrad", "FedAvgM"]
+    strategy = sys.argv[2]
+    # wandb experiments
+    wandb_track = False
+    if sys.argv[3] == "True":
+        wandb_track = True
+
+    wandb_key = sys.argv[4]
+    num_clients = int(sys.argv[5])
+
+    if wandb_track:
+        wandb.login(anonymous="never", key=wandb_key)
+        # start a new wandb run to track this script
+        wandb.init(
+            # set the wandb project where this run will be logged
+            entity="cs_team_b",
+            project="bloomnet_visualization",
+            # track hyperparameters and run metadata
+            config={
+                "method": "federated",
+                "n_rounds": n_rounds,
+                "strategy": strategy,
+                "clients": num_clients,
+            },
+        )
+
+    server = FlowerServer(
+        strategy=strategy, num_rounds=n_rounds, wandb_track=wandb_track
+    )
+    server.start_server()
+    sys.stdout.flush()
+
+    if wandb_track:
+        wandb.finish()
 
 
 class FlowerServer:
-    def __init__(self, strategy: str, num_rounds: int) -> None:
+    def __init__(self, strategy: str, num_rounds: int, wandb_track: bool) -> None:
         # Create an instance of the model and get the parameters
         self.params = get_parameters(models.FedAvgCNN())
         # Pass parameters to the Strategy for server-side parameter initialization
-        self.strategy = define_strategy(strategy, self.params)
+        self.strategy = define_strategy(strategy, wandb_track, self.params)
         self.num_rounds = num_rounds
 
         print("strategy: ", strategy)
-        print("Setting up flower server...")
 
     def get_params(self):
         return self.params
@@ -25,22 +68,13 @@ class FlowerServer:
     def get_strategy(self):
         return self.strategy
 
-    def start_simulation(self, client_fn, num_clients, num_cpu, num_gpu):
-        history = fl.simulation.start_simulation(
-            client_fn=client_fn,  # a function that spawns a particular client
-            num_clients=num_clients,  # total number of clients
-            config=fl.server.ServerConfig(
-                num_rounds=self.num_rounds
-            ),  # minimal config for the server loop telling the number of rounds in FL
-            strategy=self.strategy,  # our strategy of choice
-            client_resources={
-                "num_cpus": num_cpu,
-                "num_gpus": num_gpu,
-            },  # (optional) controls the degree of parallelism of your simulation.
-            # Lower resources per client allow for more clients to run concurrently
-            # (but need to be set taking into account the compute/memory footprint of your workload)
-            # `num_cpus` is an absolute number (integer) indicating the number of threads a client should be allocated
-            # `num_gpus` is a ratio indicating the portion of gpu memory that a client needs.
+    def start_server(self):
+        print("Setting up flower server...")
+        fl.server.start_server(
+            config=fl.server.ServerConfig(num_rounds=self.num_rounds),
+            strategy=self.strategy,
         )
 
-        return history
+
+if __name__ == "__main__":
+    main()

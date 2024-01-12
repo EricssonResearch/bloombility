@@ -12,8 +12,24 @@ from bloom import models
 # for each client in the federated learning
 CLIENT_REPORTING = False
 wandb_key = "<key>"
+from bloom import ROOT_DIR
+import sys
+from bloom.load_data.data_distributor import DATA_DISTRIBUTOR
 
-DEVICE = torch.device("cpu")
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
+def main():
+    batch_size = int(sys.argv[1])
+    num_epochs = int(sys.argv[2])
+
+    train_dataset_path = sys.argv[3]
+    test_dataset_path = sys.argv[4]
+
+    client = FlowerClient(batch_size, num_epochs)
+    client.load_dataset(train_dataset_path, test_dataset_path)
+    fl.client.start_numpy_client(server_address="127.0.0.1:8080", client=client)
+    sys.stdout.flush()
 
 
 def wandb_login() -> None:
@@ -122,21 +138,20 @@ def test(
 
 
 class FlowerClient(fl.client.NumPyClient):
-    def __init__(self, trainloader, testloader, batch_size, num_epochs):
+    def __init__(self, batch_size, num_epochs):
         # super().__init__()
         self.net = models.FedAvgCNN().to(DEVICE)
-        self.trainloader = trainloader
-        self.testloader = testloader
+
         self.batch_size = batch_size
         self.num_epochs = num_epochs
-
-        num_trainset = len(self.trainloader) * self.batch_size
-        num_testset = len(self.testloader) * self.batch_size
-        self.num_examples = {"testset": num_trainset, "trainset": num_testset}
         if CLIENT_REPORTING:
             wandb_login()
+        print("flower client created..")
 
     def load_dataset(self, train_path, test_path):
+        self.trainloader = torch.load(train_path)
+        self.testloader = torch.load(test_path)
+
         # Calculate the total number of samples
         num_trainset = len(self.trainloader) * self.batch_size
         num_testset = len(self.testloader) * self.batch_size
@@ -166,25 +181,9 @@ class FlowerClient(fl.client.NumPyClient):
             {"accuracy": float(accuracy), "f1": f1},
         )
 
+    def start_client(self):
+        fl.client.start_numpy_client(server_address="127.0.0.1:8080", client=self)
 
-def generate_client_fn(trainloaders, testloader, batch_size, num_epochs):
-    """Return a function that can be used by the VirtualClientEngine
-    to spawn a FlowerClient with client id `cid`.
-    """
 
-    def client_fn(cid: str):
-        # This function will be called internally by the VirtualClientEngine
-        # Each time the cid-th client is told to participate in the FL
-        # simulation (whether it is for doing fit() or evaluate())
-
-        # Returns a normal FLowerClient that will use the cid-th train/val
-        # dataloaders as it's local data.
-        return FlowerClient(
-            trainloader=trainloaders[int(cid)],
-            testloader=testloader,
-            batch_size=batch_size,
-            num_epochs=num_epochs,
-        )
-
-    # return the function to spawn client
-    return client_fn
+if __name__ == "__main__":
+    main()

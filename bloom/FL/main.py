@@ -2,13 +2,15 @@ import wandb
 import torch
 
 from bloom.load_data.data_distributor import DATA_DISTRIBUTOR
-from client import generate_client_fn
+from client import FlowerClient
 from server import FlowerServer
 from bloom import ROOT_DIR, models
 
 import os
 import glob
 import hydra
+import subprocess
+from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig, OmegaConf
 
 from sklearn.metrics import (
@@ -20,9 +22,10 @@ from sklearn.metrics import (
 )
 import matplotlib.pyplot as plt
 import numpy as np
+import flwr as fl
 
 config_path = os.path.join(ROOT_DIR, "config", "federated")
-DEVICE = torch.device("cpu")
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def eval_final(model, test_loader):
@@ -92,9 +95,12 @@ def test_class_probabilities(model, test_loader, which_class):
     return [i.item() for i in actuals], [i.item() for i in probabilities]
 
 
+server_path = os.path.join(ROOT_DIR, "FL", "server")
+client_path = os.path.join(ROOT_DIR, "FL", "client")
+
+
 @hydra.main(config_path=config_path, config_name="base", version_base=None)
 def main(cfg: DictConfig):
-    print(config_path)
     print(OmegaConf.to_yaml(cfg))
     # PARAMS
     # Number of rounds of federated learning
@@ -102,6 +108,11 @@ def main(cfg: DictConfig):
 
     # Strategies available:  ["FedAvg", "FedAdam", "FedYogi", "FedAdagrad", "FedAvgM"]
     strategy = cfg.server.strategy
+    # wandb experiments
+    wandb_track = bool(cfg.main.wandb_active)
+    wandb_key = cfg.main.wandb_key
+
+    # Strategies available:  ["FedAvg", "FedAdam", "FedYogi", "FedAdagrad", "FedAvgM"]
     batch_size = cfg.client.hyper_params.batch_size
     num_epochs = cfg.client.hyper_params.num_epochs
 
@@ -143,17 +154,45 @@ def main(cfg: DictConfig):
 
     testloader = data_distributor.get_testloader()
 
-    client_fn = generate_client_fn(trainloaders, testloader, batch_size, num_epochs)
-
-    server = FlowerServer(strategy=strategy, num_rounds=n_rounds)
-    history = server.start_simulation(
-        client_fn, cfg.main.num_clients, cfg.client.num_cpu, cfg.client.num_gpu
+    process = subprocess.Popen(
+        [
+            os.path.join(server_path, "server.py"),
+            f"{n_rounds}",
+            f"{strategy}",
+            f"{wandb_track}",
+            f"{wandb_key}",
+            f"{num_clients}",
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
     )
+
+    # subprocess.run(["chmod", "+x", "client/client.py"], check=True)
+    for i in range(1, num_clients + 1):
+        trainloader_str = (
+            f"{ROOT_DIR}/load_data/datasets/train_dataset{i}_{num_clients}.pth"
+        )
+        testloader_str = f"{ROOT_DIR}/load_data/datasets/test_dataset.pth"
+        subprocess.Popen(
+            [
+                os.path.join(client_path, "client.py"),
+                f"{batch_size}",
+                f"{num_epochs}",
+                trainloader_str,
+                testloader_str,
+            ]
+        )
+
+    print("Main finished")
+
+    process.wait()
+    # Access the output and error
+    output, error = process.communicate()
+    print(output.decode("utf-8"))
+    print(error.decode("utf-8"))
 
     if wandb_track:
         wandb.finish()
-
-    print(history)
 
     if advanced_visualization:
         # for advanced evaluation: load the best model
