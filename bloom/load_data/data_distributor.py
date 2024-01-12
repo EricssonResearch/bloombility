@@ -73,7 +73,12 @@ class DatasetSplit(Dataset):
 
 class DATA_DISTRIBUTOR:
     def __init__(
-        self, numClients, data_split_config=None, data_split="iid", visualize=False
+        self,
+        numClients,
+        data_split_config=None,
+        data_split="iid",
+        visualize=False,
+        dataset="CIFAR10",
     ):
         """
         Process:
@@ -89,8 +94,14 @@ class DATA_DISTRIBUTOR:
             numClients: number of clients. Indicates how many training datasets need to be created
             data_split_config: class object with hydra configuration
             data_split: what type of iid or non-iid data split shall be applied
+            visualize: whether to visualize the distribution of the data split
+            dataset: which dataset to use (CIFAR10 or FEMNIST). Defaults to CIFAR10
 
         """
+        # Dictionary mapping dataset name to dataset class
+        self.DATASETS = {"CIFAR10": CIFARTEN, "FEMNIST": FEMNIST}
+        self.DatasetClass = self.DATASETS[dataset]
+
         self.num_clients = numClients
 
         print("Load dataset...")
@@ -139,15 +150,28 @@ class DATA_DISTRIBUTOR:
             trainset: CIFAR10 object for training purposes
             testset: CIFAR10 object for testing purposes
         """
-        transform = transforms.Compose(
-            [
-                transforms.ToTensor(),
-                transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-            ]
-        )
+        # Define a transform to normalize the data
+        if self.DatasetClass == CIFARTEN:
+            transform = transforms.Compose(
+                [
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                ]
+            )
+        elif self.DatasetClass == FEMNIST:
+            transform = transforms.Compose(
+                [
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.5,), (0.5,)),
+                ]
+            )
 
-        trainset = CIFARTEN(".", train=True, download=True, transform=transform)
-        testset = CIFARTEN(".", train=False, download=True, transform=transform)
+        trainset = self.DatasetClass(
+            ".", train=True, download=True, transform=transform
+        )
+        testset = self.DatasetClass(
+            ".", train=False, download=True, transform=transform
+        )
 
         return trainset, testset
 
