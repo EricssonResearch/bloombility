@@ -1,0 +1,4 @@
+[submodule "team_A"]
+	path = team_A
+	url = https://github.com/Mithzyl/Project_CS_UserVsSpecific.git
+	branch = main

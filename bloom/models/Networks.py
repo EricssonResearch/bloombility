@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torchvision.models as models
 
 
 # Creating a CNN class
@@ -121,3 +122,84 @@ class FedAvgCNN(nn.Module):
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
         return x
+
+
+# Model from Kosta's tutorial on split learning
+class Cifar10CNNHeadModel(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.fc1 = nn.Linear(16 * 5 * 5, 120)
+        self.fc2 = nn.Linear(120, 84)
+        self.fc3 = nn.Linear(84, 10)
+        # self.linear_relu_stack = nn.Sequential(nn.Linear(input_layer_size, num_labels))
+
+    def forward(self, x):
+        x = x.view(-1, 16 * 5 * 5)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        output = self.fc3(x)
+        # output = self.linear_relu_stack(x)
+        return output
+
+
+class Cifar10CNNWorkerModel(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv1 = nn.Conv2d(3, 6, 5)
+        self.pool = nn.MaxPool2d(2, 2)
+        self.conv2 = nn.Conv2d(6, 16, 5)
+        # cut_layer_size = 32
+        # self.linear_relu_stack = nn.Sequential(
+        #     nn.Linear(input_layer_size, cut_layer_size), nn.ReLU(), nn.Dropout(0.2)
+        # )
+
+    def forward(self, x):
+        x = self.pool(F.relu(self.conv1(x)))
+        output = self.pool(F.relu(self.conv2(x)))
+        # output = self.linear_relu_stack(x)
+        return output
+
+
+# ResNet18 model for CIFAR10 dataset
+class ResNet18(nn.Module):
+    def __init__(self, num_classes=10):
+        super(ResNet18, self).__init__()
+        self.model = models.resnet18(pretrained=False)
+
+        # Modify the first layer and the last layer to adapt to CIFAR10
+        self.model.conv1 = nn.Conv2d(
+            3, 64, kernel_size=3, stride=1, padding=1, bias=False
+        )
+        self.model.maxpool = nn.Identity()  # remove max pooling
+        self.model.fc = nn.Linear(self.model.fc.in_features, num_classes)
+
+    def forward(self, x):
+        return self.model(x)
+
+
+# CNN model for FEMNIST dataset
+class CNNFemnistWorkerModel(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.conv1 = nn.Conv2d(1, 32, 7, padding=3)
+        self.act = nn.ReLU()
+        self.pool = nn.MaxPool2d(2, 2)
+
+    def forward(self, x):
+        x = x.reshape(-1, 1, 28, 28)
+        output = self.pool(self.act(self.conv1(x)))
+        return output
+
+
+class CNNFemnistHeadModel(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.act = nn.ReLU()
+        self.pool = nn.MaxPool2d(2, 2)
+        self.conv2 = nn.Conv2d(32, 64, 3, padding=1)
+        self.out = nn.Linear(64 * 7 * 7, 62)
+
+    def forward(self, x):
+        x = self.pool(self.act(self.conv2(x)))
+        x = x.flatten(1)
+        return self.out(x)

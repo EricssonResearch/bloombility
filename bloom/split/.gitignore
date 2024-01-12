@@ -1,3 +1,4 @@
+data/
 logs/
 cifar*
 cifar/
@@ -6,4 +7,5 @@ python3-env/
 datasets/
 outputs/
 wandb/
-saved_fl_models/
+plots/
+FEMNIST/

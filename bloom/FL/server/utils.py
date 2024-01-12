@@ -1,8 +1,12 @@
 import flwr as fl
+import os
 from typing import List
 import numpy as np
 import wandb
+import torch
+from collections import OrderedDict
 
+from bloom import models, ROOT_DIR
 
 IS_WANDB_TRACK = False  # <-needs to be exported to yaml
 
@@ -44,9 +48,7 @@ def define_strategy(
         )
     elif strat == "FedAvg":
         # Federated Averaging strategy
-        strategy = fl.server.strategy.FedAvg(
-            evaluate_metrics_aggregation_fn=weighted_average
-        )
+        strategy = SaveFedAvg(evaluate_metrics_aggregation_fn=weighted_average)
     elif strat == "FedAvgM":
         # Configurable FedAvg with Momentum strategy implementation
         if params is None:
@@ -108,13 +110,44 @@ def weighted_average(metrics: dict) -> dict:
         A dictionary with the weighted average of the metrics
     """
     acc = [num_examples * m["accuracy"] for num_examples, m in metrics]
+    f1_score = [num_examples * m["f1"] for num_examples, m in metrics]
     examples = [num_examples for num_examples, _ in metrics]
 
     if IS_WANDB_TRACK:
         # wandb logging
         wandb.log(
-            {
-                "acc": sum(acc) / sum(examples),
-            }
+            {"acc": sum(acc) / sum(examples), "f1": sum(f1_score) / sum(examples)}
         )
     return {"accuracy": sum(acc) / sum(examples)}
+
+
+class SaveFedAvg(fl.server.strategy.FedAvg):
+    """Override strategies to save the model for final evaluation"""
+
+    def aggregate_fit(self, server_round: int, results, failures):
+        net = models.FedAvgCNN()
+
+        # Call aggregate_fit from base class (FedAvg) to aggregate parameters and metrics
+        aggregated_parameters, aggregated_metrics = super().aggregate_fit(
+            server_round, results, failures
+        )
+
+        if aggregated_parameters is not None:
+            # Convert `Parameters` to `List[np.ndarray]`
+            aggregated_ndarrays: List[np.ndarray] = fl.common.parameters_to_ndarrays(
+                aggregated_parameters
+            )
+
+            # Convert `List[np.ndarray]` to PyTorch`state_dict`
+            params_dict = zip(net.state_dict().keys(), aggregated_ndarrays)
+            state_dict = OrderedDict({k: torch.tensor(v) for k, v in params_dict})
+            net.load_state_dict(state_dict, strict=True)
+
+            # Save the model
+            exp_folder = os.path.join(ROOT_DIR, "FL", "saved_fl_models")
+            print(exp_folder)
+            if not os.path.exists(exp_folder):
+                os.makedirs(exp_folder)
+            torch.save(net.state_dict(), f"{exp_folder}/model_round_{server_round}.pth")
+
+        return aggregated_parameters, aggregated_metrics

@@ -3,16 +3,20 @@
 from collections import OrderedDict
 import torch
 import flwr as fl
+import wandb
+from sklearn.metrics import f1_score
 
 from bloom import models
+
+# if you want to have metrics reported to wandb
+# for each client in the federated learning
+CLIENT_REPORTING = False
+wandb_key = "<key>"
 from bloom import ROOT_DIR
-import os
 import sys
 from bloom.load_data.data_distributor import DATA_DISTRIBUTOR
 
-import logging
-
-DEVICE = torch.device("cuda")
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def main():
@@ -28,8 +32,25 @@ def main():
     sys.stdout.flush()
 
 
+def wandb_login() -> None:
+    """logs into wandb and sets up a new project
+    that can log metrics for each client in fn learning
+    """
+    if wandb.run is None:
+        wandb.login(anonymous="never", key=wandb_key)
+    # start a new wandb run to track this script
+    wandb.init(
+        # set the wandb project where this run will be logged
+        entity="cs_team_b",
+        # keep separate from other runs by logging to different project
+        project="f1_non_iid_unbalancing",
+    )
+
+
 def train(
-    net: torch.nn.Module, trainloader: torch.utils.data.DataLoader, epochs: int
+    net: torch.nn.Module,
+    trainloader: torch.utils.data.DataLoader,
+    epochs: int,
 ) -> None:
     """Train the network on the training set.
 
@@ -38,16 +59,42 @@ def train(
         trainloader: training dataset
         epochs: number of epochs in a federated learning round
     """
+
+    net.train()  # set to train mode
     criterion = torch.nn.CrossEntropyLoss()
-    # optimizer = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
     optimizer = torch.optim.Adam(net.parameters())
-    for _ in range(epochs):
+    for i in range(epochs):
         for images, labels in trainloader:
             images, labels = images.to(DEVICE), labels.to(DEVICE)
             optimizer.zero_grad()
             loss = criterion(net(images), labels)
             loss.backward()
             optimizer.step()
+
+        train_loss, train_acc, train_f1 = test(
+            net, trainloader
+        )  # get loss and acc on train set
+
+        if CLIENT_REPORTING:
+            wandb.log(
+                {
+                    "dataset_len": len(trainloader),
+                    "train_loss": train_loss,
+                    "train_accuracy": train_acc,
+                    "epoch": i,
+                }
+            )
+
+    # it can be accessed through the fit function
+    # needs an aggregate_fn definition for the strategies
+    # to be useful
+    results = {
+        "train_loss": train_loss,
+        "train_accuracy": train_acc,
+        "train_fn": train_f1,
+    }
+
+    return results
 
 
 def test(
@@ -65,6 +112,8 @@ def test(
     """
     criterion = torch.nn.CrossEntropyLoss()
     correct, total, loss = 0, 0, 0.0
+    list_of_f1s = []
+    net.eval()  # set to test mode
     with torch.no_grad():
         for data in testloader:
             images, labels = data[0].to(DEVICE), data[1].to(DEVICE)
@@ -73,9 +122,19 @@ def test(
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
+            f1_sc = f1_score(labels, predicted, average="weighted")
+            list_of_f1s.append(f1_sc)
     accuracy = correct / total
+    averaged_f1 = sum(list_of_f1s) / len(list_of_f1s)
 
-    return loss, accuracy
+    if CLIENT_REPORTING:
+        wandb.log(
+            {"test_loss": loss, "test_accuracy": accuracy, "averaged_f1": averaged_f1}
+        )
+
+    print(f"average f1: {averaged_f1}")
+
+    return loss, accuracy, averaged_f1
 
 
 class FlowerClient(fl.client.NumPyClient):
@@ -85,7 +144,8 @@ class FlowerClient(fl.client.NumPyClient):
 
         self.batch_size = batch_size
         self.num_epochs = num_epochs
-
+        if CLIENT_REPORTING:
+            wandb_login()
         print("flower client created..")
 
     def load_dataset(self, train_path, test_path):
@@ -108,13 +168,18 @@ class FlowerClient(fl.client.NumPyClient):
 
     def fit(self, parameters, config):
         self.set_parameters(parameters)
-        train(self.net, self.trainloader, epochs=self.num_epochs)
-        return self.get_parameters(config={}), self.num_examples["trainset"], {}
+
+        results = train(self.net, self.trainloader, epochs=self.num_epochs)
+        return self.get_parameters(config={}), self.num_examples["trainset"], results
 
     def evaluate(self, parameters, config):
         self.set_parameters(parameters)
-        loss, accuracy = test(self.net, self.testloader)
-        return float(loss), self.num_examples["testset"], {"accuracy": float(accuracy)}
+        loss, accuracy, f1 = test(self.net, self.testloader)
+        return (
+            float(loss),
+            self.num_examples["testset"],
+            {"accuracy": float(accuracy), "f1": f1},
+        )
 
     def start_client(self):
         fl.client.start_numpy_client(server_address="127.0.0.1:8080", client=self)
