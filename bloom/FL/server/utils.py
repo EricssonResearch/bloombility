@@ -1,7 +1,12 @@
 import flwr as fl
 from typing import List
 import numpy as np
+import matplotlib.pyplot as plt
+from datetime import datetime
+import os
 import wandb
+
+from bloom import ROOT_DIR
 
 
 IS_WANDB_TRACK = True  # <-needs to be exported to yaml
@@ -120,7 +125,42 @@ def weighted_average(metrics: dict) -> dict:
             {
                 "acc": sum(acc) / sum(examples),
                 "f1": sum(f1_score) / sum(examples),
-                "loss:" sum(loss) / sum(examples)
+                "loss": sum(loss) / sum(examples),
             }
         )
+
+    plot_precision_recall(precision, recall, examples)
+
     return {"accuracy": sum(acc) / sum(examples)}
+
+
+def plot_precision_recall(precision, recall, examples):
+    # get average precision and recall over all clients
+    average_precision = sum(precision) / sum(examples)
+    average_recall = sum(recall) / sum(examples)
+
+    # Plot the micro-averaged Precision-Recall curve
+    plt.figure(figsize=(6.4 * 2, 4.8 * 2))
+    plt.plot(
+        average_precision,
+        average_recall,
+        color="gold",
+        lw=2,
+        label="micro-average",
+    )
+
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel("Recall")
+    plt.ylabel("Precision")
+
+    plt.legend(loc="lower right")
+    # Get current time
+    now = datetime.now()
+    # Format as string (YYYYMMDD_HHMMSS format)
+    timestamp_str = now.strftime("%Y%m%d_%H%M%S")
+    if not os.path.exists(f"{ROOT_DIR}/split/plots/"):
+        os.makedirs(f"{ROOT_DIR}/split/plots/")
+    plt.savefig(f"{ROOT_DIR}/split/plots/precision_recall_curve_{timestamp_str}.png")
+    if IS_WANDB_TRACK:
+        wandb.log({"precision_recall_curve": plt})
