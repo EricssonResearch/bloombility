@@ -2,15 +2,25 @@ from typing import List
 from torch import nn
 from torch.nn import Module
 import torch.optim as optim
+import numpy as np
 import torch
-from bloom.models import Cifar10CNNWorkerModel
+from bloom.models import Cifar10CNNWorkerModel, CNNFemnistWorkerModel
 import ray
 import wandb
+from sklearn.metrics import f1_score
+from sklearn.preprocessing import label_binarize
+
 
 # Dictionary mapping optimizer names to their classes
 OPTIMIZERS = {
     "SGD": optim.SGD,
     "Adam": optim.Adam,
+}
+
+# Dictionary mapping dataset names to their model classes
+MODELS = {
+    "CIFAR10": Cifar10CNNWorkerModel,
+    "FEMNIST": CNNFemnistWorkerModel,
 }
 
 
@@ -48,7 +58,8 @@ class WorkerActor:
             Object: The WorkerActor object.
 
         """
-        self.model = Cifar10CNNWorkerModel(input_layer_size)
+        ModelClass = MODELS[config.dataset]
+        self.model = ModelClass(input_layer_size)
         self.train_data = train_data
         self.test_data = test_data
         # Create the optimizer using the configuration parameters
@@ -115,18 +126,38 @@ class WorkerActor:
         total = 0
         correct = 0
         total_loss = 0.0
+        y_true = []
+        y_pred = []
+
+        all_labels = []
+        all_scores = []
+
         for inputs, labels in self.test_data:
             inputs = inputs
             client_output = self.model(inputs)
-            loss, correct_pred, total_pred = ray.get(
+            loss, correct_pred, total_pred, predicted, output = ray.get(
                 server_actor.validate.remote(client_output, labels)
             )
+            # Convert the output scores to probabilities
+            scores = torch.nn.functional.softmax(output, dim=1).cpu().numpy()
+            all_scores.append(scores)
+
+            # Convert the target labels to a binary format
+            _labels = label_binarize(labels.cpu().numpy(), classes=np.arange(10))
+            all_labels.append(_labels)
+
             total += total_pred
             correct += correct_pred
             total_loss += loss
+            y_true.extend(labels.tolist())
+            y_pred.extend(predicted.tolist())
         avg_loss = total_loss / len(self.test_data)
         accuracy = 100 * correct / total
-        return avg_loss, accuracy
+        f1 = f1_score(y_true, y_pred, average="weighted")
+        # Concatenate all the scores and labels
+        all_scores = np.concatenate(all_scores)
+        all_labels = np.concatenate(all_labels)
+        return avg_loss, accuracy, f1, all_labels, all_scores
 
     def get_model(self) -> Module:
         """Returns the model.

@@ -4,6 +4,8 @@ from .Networks import (
     CNNFemnist,
     RegressionModel,
     FedAvgCNN,
-    CNNHeadModel,
-    CNNWorkerModel,
+    Cifar10CNNHeadModel,
+    Cifar10CNNWorkerModel,
+    CNNFemnistWorkerModel,
+    CNNFemnistHeadModel,
 )

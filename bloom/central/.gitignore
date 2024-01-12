@@ -1,2 +1,5 @@
 /data
 /wandb
+/outputs
+/cifar-10-batches-py
+*.tar.gz
