@@ -1,4 +1,4 @@
-num_clients: 2
+num_clients: 4
 data_split_available: ["iid", "num_classes", "num_samples"]
 data_split_config:
   dirichlet_alpha: 0.3
