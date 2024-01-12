@@ -135,9 +135,9 @@ def test(
 
     accuracy = correct / total
 
-    f1 = f1_score(labels_list, pred_list, average="macro")
-    precision = precision_score(labels_list, pred_list, average="macro")
-    recall = recall_score(labels_list, pred_list, average="macro")
+    f1 = f1_score(labels_list, pred_list, average="micro")
+    precision = precision_score(labels_list, pred_list, average="micro")
+    recall = recall_score(labels_list, pred_list, average="micro")
 
     return loss, accuracy, f1, precision, recall
 
