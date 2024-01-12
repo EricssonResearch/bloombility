@@ -108,6 +108,9 @@ def weighted_average(metrics: dict) -> dict:
         A dictionary with the weighted average of the metrics
     """
     acc = [num_examples * m["accuracy"] for num_examples, m in metrics]
+    precision = [num_examples * m["precision"] for num_examples, m in metrics]
+    recall = [num_examples * m["recall"] for num_examples, m in metrics]
+    f1_score = [num_examples * m["f1"] for num_examples, m in metrics]
     examples = [num_examples for num_examples, _ in metrics]
 
     if IS_WANDB_TRACK:
@@ -115,6 +118,7 @@ def weighted_average(metrics: dict) -> dict:
         wandb.log(
             {
                 "acc": sum(acc) / sum(examples),
+                "f1": sum(f1_score) / sum(examples)
             }
         )
     return {"accuracy": sum(acc) / sum(examples)}

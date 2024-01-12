@@ -9,11 +9,13 @@ import argparse
 import yaml
 import os
 from bloom import ROOT_DIR
+from sklearn.metrics import f1_score, precision_score, recall_score
 
 import logging
 
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 CONFIG_PATH = os.path.join(ROOT_DIR, "config", "federated")
+CLIENT_REPORTING = False
 
 
 def main():
@@ -59,7 +61,9 @@ def main():
 
 
 def train(
-    net: torch.nn.Module, trainloader: torch.utils.data.DataLoader, epochs: int
+    net: torch.nn.Module,
+    trainloader: torch.utils.data.DataLoader,
+    epochs: int,
 ) -> None:
     """Train the network on the training set.
 
@@ -68,16 +72,32 @@ def train(
         trainloader: training dataset
         epochs: number of epochs in a federated learning round
     """
+
+    net.train()  # set to train mode
     criterion = torch.nn.CrossEntropyLoss()
-    # optimizer = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
     optimizer = torch.optim.Adam(net.parameters())
-    for _ in range(epochs):
+    for i in range(epochs):
         for images, labels in trainloader:
             images, labels = images.to(DEVICE), labels.to(DEVICE)
             optimizer.zero_grad()
             loss = criterion(net(images), labels)
             loss.backward()
             optimizer.step()
+
+        train_loss, train_acc, train_f1, precision, recall = test(
+            net, trainloader
+        )  # get loss and acc on train set
+
+    # it can be accessed through the fit function
+    # needs an aggregate_fn definition for the strategies
+    # to be useful
+    results = {
+        "train_loss": train_loss,
+        "train_accuracy": train_acc,
+        "train_fn": train_f1,
+    }
+
+    return results
 
 
 def test(
@@ -95,6 +115,11 @@ def test(
     """
     criterion = torch.nn.CrossEntropyLoss()
     correct, total, loss = 0, 0, 0.0
+
+    labels_list = []
+    pred_list = []
+
+    net.eval()  # set to test mode
     with torch.no_grad():
         for data in testloader:
             images, labels = data[0].to(DEVICE), data[1].to(DEVICE)
@@ -103,20 +128,26 @@ def test(
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
+
+            # Move tensors to CPU before using them with NumPy
+            labels_list.extend(labels.cpu().numpy())
+            pred_list.extend(predicted.cpu().numpy())
+
     accuracy = correct / total
 
-    return loss, accuracy
+    f1 = f1_score(labels_list, pred_list, average="macro")
+    precision = precision_score(labels_list, pred_list, average="macro")
+    recall = recall_score(labels_list, pred_list, average="macro")
+
+    return loss, accuracy, f1, precision, recall
 
 
 class FlowerClient(fl.client.NumPyClient):
     def __init__(self, batch_size, num_epochs):
         # super().__init__()
         self.net = models.CNNFemnist().to(DEVICE)
-
         self.batch_size = batch_size
         self.num_epochs = num_epochs
-
-        print("flower client created..")
 
     def load_dataset(self, train_path, test_path):
         self.trainloader = torch.load(train_path)
@@ -138,13 +169,23 @@ class FlowerClient(fl.client.NumPyClient):
 
     def fit(self, parameters, config):
         self.set_parameters(parameters)
-        train(self.net, self.trainloader, epochs=self.num_epochs)
-        return self.get_parameters(config={}), self.num_examples["trainset"], {}
+
+        results = train(self.net, self.trainloader, epochs=self.num_epochs)
+        return self.get_parameters(config={}), self.num_examples["trainset"], results
 
     def evaluate(self, parameters, config):
         self.set_parameters(parameters)
-        loss, accuracy = test(self.net, self.testloader)
-        return float(loss), self.num_examples["testset"], {"accuracy": float(accuracy)}
+        loss, accuracy, f1, precision, recall = test(self.net, self.testloader)
+        return (
+            float(loss),
+            self.num_examples["testset"],
+            {
+                "accuracy": float(accuracy),
+                "f1": f1,
+                "precision": precision,
+                "recall": recall,
+            },
+        )
 
     def start_client(self):
         fl.client.start_numpy_client(server_address="127.0.0.1:8080", client=self)
