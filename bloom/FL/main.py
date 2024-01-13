@@ -112,7 +112,9 @@ def main(cfg: DictConfig):
 
     advanced_visualization = cfg.main.advanced_visualization
 
-    data_distributor = DATA_DISTRIBUTOR(num_clients, data_split_config, data_split)
+    data_distributor = DATA_DISTRIBUTOR(
+        num_clients, data_split_config, data_split, advanced_visualization
+    )
     # wandb experiments
     wandb_track = cfg.main.wandb_active
     wandb_key = cfg.main.wandb_key

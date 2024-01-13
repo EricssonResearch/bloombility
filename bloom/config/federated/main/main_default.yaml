@@ -3,7 +3,7 @@ data_split_available: ["iid", "num_classes", "num_samples", "updated_non_iid"]
 data_split_config:
   dirichlet_alpha: 0.5
   niid_factor: 2
-advanced_visualization: True
+advanced_visualization: False
 data_split_chosen: "updated_non_iid"
 wandb_active: False
 wandb_key: "<login key here>"
