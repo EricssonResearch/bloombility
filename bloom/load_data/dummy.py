@@ -1,6 +1,8 @@
 import os
 import csv
 import datetime
+import warnings
+import random
 
 import math
 import numpy as np
@@ -74,16 +76,11 @@ def get_cifar10():
 
 
 def split_non_iid_clients(
-    trainset,
-    testset,
-    num_clients,
-    num_classes,
-    batch_size,
-    alpha_factors,
-    only_num_of_classes,
+    trainset, testset, num_clients, num_classes, batch_size, alpha_factors, plot=False
 ):
-    if num_classes / num_clients < only_num_of_classes:
-        print("Not enough classes for number of clients")
+    """Splits non-IID client datasets from a given dataset."""
+
+    print("Generating non-iid splits, this takes a second...")
 
     # get every single label of the trainset as a list
     classes: np.ndarray = (
@@ -97,7 +94,6 @@ def split_non_iid_clients(
     # sort based on class label in ascending order
     idxs_labels = idxs_labels[:, idxs_labels[1, :].argsort()]
 
-    print("#######")
     # return_index returns the indices of ar that result in the unique array == the first appearance
     _, locations, counts = np.unique(
         idxs_labels[1], return_index=True, return_counts=True
@@ -108,15 +104,13 @@ def split_non_iid_clients(
     # every [x][1] contains the labels, [x][0] the locations
     split_arrays = np.split(idxs_labels, indices_or_sections=locations, axis=1)
 
-    # from here, depends on use case #
-
     # dirichilet implementation
     all_distributions = []
 
     # get distribution per class and client
     for i in range(num_clients):
         rand_nums = np.random.dirichlet(np.ones(num_classes) * alpha_factors[i])
-        print(f"rand nums of client {i}: {rand_nums}, sum = {sum(rand_nums)}")
+        # print(f"rand nums of client {i}: {rand_nums}, sum = {sum(rand_nums)}")
         all_distributions.append(rand_nums)
 
     # find biggest dist sum per class with which to scale all others
@@ -125,77 +119,120 @@ def split_non_iid_clients(
         per_class_sum = 0
         for k in range(num_clients):
             per_class_sum += all_distributions[k][j]
-        print(f"per class sum of {j}: {per_class_sum}")
+        # print(f"per class sum of {j}: {per_class_sum}")
         if per_class_sum > biggest_sum:
             biggest_sum = per_class_sum
 
-    print(f"min number of class elements: {np.amin(counts)}")
+    # scale down if biggest is factor of >1, otherwise up
     biggest_abs_amt = 0
     if biggest_sum <= 1:
         biggest_abs_amt = math.floor(int(np.amin(counts)) * biggest_sum)
     else:
         biggest_abs_amt = math.floor(int(np.amin(counts)) / biggest_sum)
 
-    print(
-        f"biggest class percentage: {biggest_sum}, which results in {biggest_abs_amt} samples"
-    )
-
+    # convert fractions into absolute amount of images
     absolute_amounts = []
     for i in range(num_clients):
         client_absolutes = []
         for dist in all_distributions[i]:
-            print(f"dist: {math.floor(dist* biggest_abs_amt)}")
             amt = math.floor(dist * biggest_abs_amt)
             client_absolutes.append(amt)
-        print(f"for client {i}: use {client_absolutes}")
+        # print(f"Client {i} receives {client_absolutes} samples")
         absolute_amounts.append(client_absolutes)
 
-    # double check results:
-    for i in range(num_classes):
-        check_sum = 0
-        for j in range(num_clients):
-            check_sum += absolute_amounts[j][i]
-        print(f"Max was {counts[i]} got {check_sum}")
-
-    make_graph(absolute_amounts, 4, 10)
+    if plot:
+        # plot dist
+        make_graph(absolute_amounts, 4, 10)
 
     # now, split actual dataset: for each per-class dataset, split it into chunks based on absolute_amounts
-    # then re-arrange them to be per-client instead of per-class
 
-    # datasets = random_split(trainset, rand_nums, torch.Generator().manual_seed(42))
-
-    # also need to adjust the plotting funct
-
-    # n classes implementation
-
-    # for each client, get a list of the indices we want to have
-    count = 0
-    all_indices = []
-    for i in range(num_clients):
-        per_client_indices = []
-        for j in range(only_num_of_classes):
-            per_client_indices.extend(split_arrays[count + 1][0])
-            count += 1
-        all_indices.append(per_client_indices)
-
-    # make dataloaders out of it
-    trainloader_list = []
-    for i in range(len(all_indices)):
-        trainloader_list.append(
-            DataLoader(
-                DatasetSplit(trainset, all_indices[i]),
-                batch_size=batch_size,
-                shuffle=True,
-            )
+    # first, separate trainset by classes, whose indices are recorded in split_arrays
+    separated_class_images = []
+    for i in range(num_classes):
+        # print(f"split_arr of {i}[0]: {split_arrays[i+1][0]}")
+        separated_class_images.append(
+            torch.utils.data.Subset(trainset, split_arrays[i + 1][0])
         )
 
-    testloader = DataLoader(testset, batch_size=batch_size)
+    overall_chunk_splits = []
+    # calculate chunk sizes per class
+    for i in range(num_classes):
+        chunk_splits = []
+        for k in range(num_clients):
+            chunk_splits.append(absolute_amounts[k][i])
+        # print(f"Class {i} is split into chunks of {chunk_splits}")
+        overall_chunk_splits.append(chunk_splits)
 
-    return trainloader_list, testloader
+    # generate the indices of the chunks
+    per_class_randoms = []
+    for i in range(num_classes):
+        per_client_randoms = []
+        for k in range(num_clients):
+            random_indices = n_rand_numbers(
+                0, len(split_arrays[i + 1][0]), overall_chunk_splits[i][k]
+            )
+            # print(f"Random indices of classes {i}: total len of {len(random_indices)}, array: {random_indices}")
+            per_client_randoms.append(random_indices)
+        per_class_randoms.append(per_client_randoms)
+
+    # re-arrange them to be per-client instead of per-class
+    transposed_list = transpose(per_class_randoms)
+
+    # extract chunks from subsets
+    all_client_datasets = []
+    for client in range(num_clients):
+        per_client_set = []
+        for cla in range(num_classes):
+            class_client_chunk = torch.utils.data.Subset(
+                separated_class_images[cla], transposed_list[client][cla]
+            )
+            # extend here
+            per_client_set.extend(class_client_chunk)
+        # append here
+        # as a last step, convert them to DataLoaders
+        data_loader_per_client = DataLoader(
+            per_client_set, batch_size=batch_size, shuffle=True
+        )
+        all_client_datasets.append(data_loader_per_client)
+
+    return all_client_datasets, DataLoader(testset, batch_size=batch_size)
+
+
+def n_rand_numbers(start, end, num):
+    """Generate num random numbers in range from start to end"""
+    res = []
+
+    for j in range(num):
+        res.append(random.randint(start, end))
+
+    return res
+
+
+def transpose(two_dim_list):
+    """transpose a two-dimensional list"""
+    transposed = []
+    # iterate over list l1 to the length of an item
+    for i in range(len(two_dim_list[0])):
+        # print(i)
+        row = []
+        for item in two_dim_list:
+            # appending to new list with values and index positions
+            # i contains index position and item contains values
+            row.append(item[i])
+        transposed.append(row)
+    return transposed
 
 
 def make_graph(dist, num_clients, num_classes):
-    """Note: throws warning about being unable to plot -Inf, but plots nothing in that place instead, which is fine"""
+    """create graph that shows number of samples per class per client for a single experiment.
+    X axis: classes
+    Y axis: clients
+    Size of dots: number of samples
+    """
+    # would throw warning about being unable to plot -Inf,
+    # but plots nothing in that place instead, which is desired effect. So suppress warning.
+    warnings.simplefilter("ignore", RuntimeWarning)
+
     max_dataset_len = 0
     for row in range(num_clients):
         # Get the dataset sizes for the current experiment
@@ -226,6 +263,8 @@ def make_graph(dist, num_clients, num_classes):
     # Show the plot
     plt.show()
 
+    warnings.resetwarnings()
+
 
 def main():
     train, test = get_cifar10()
@@ -234,10 +273,9 @@ def main():
     batch_size = 32
     # every single client can have different alphas
     alphas = [0.5 for y in range(num_clients)]
-    only_num_of_classes = 2
 
     split_non_iid_clients(
-        train, test, num_clients, num_classes, batch_size, alphas, only_num_of_classes
+        train, test, num_clients, num_classes, batch_size, alphas, plot=True
     )
 
 
