@@ -245,7 +245,9 @@ def main(cfg: DictConfig) -> None:
     wandb_track = cfg.main.wandb.track
 
     wandb_config = {
-        "api_key": os.environ["WANDB_API_KEY"],
+        # this only works if you save the key to your OS, which cannot be assumed.
+        "api_key": cfg.main.wandb.api_key,
+        # "api_key": os.environ["WANDB_API_KEY"],
         "entity": cfg.main.wandb.entity,
         "project": cfg.main.wandb.project,
         "group": cfg.main.wandb.group,
