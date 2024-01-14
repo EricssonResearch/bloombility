@@ -59,7 +59,7 @@ class WorkerActor:
 
         """
         ModelClass = MODELS[config.dataset]
-        self.model = ModelClass(input_layer_size)
+        self.model = ModelClass()
         self.train_data = train_data
         self.test_data = test_data
         # Create the optimizer using the configuration parameters

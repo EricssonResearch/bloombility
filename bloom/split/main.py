@@ -106,7 +106,7 @@ def plot_workers_losses(
         os.makedirs(f"{ROOT_DIR}/split/plots/")
     plt.savefig(f"{ROOT_DIR}/split/plots/workers_losses_{dataset}_{timestamp_str}.png")
     if wandb_track:
-        wandb.log({"workers_losses": plt})
+        wandb.log({"workers_losses": wandb.Image(plt)})
     if showPlot:
         plt.show()
 
@@ -189,7 +189,7 @@ def plot_precision_recall(
         f"{ROOT_DIR}/split/plots/precision_recall_curve_{dataset}_{timestamp_str}.png"
     )
     if wandb_track:
-        wandb.log({"precision_recall_curve": plt})
+        wandb.log({"precision_recall_curve": wandb.Image(plt)})
     if showPlot:
         plt.show()
 
@@ -234,6 +234,10 @@ def main(cfg: DictConfig) -> None:
     DATASET = cfg.main.dataset
     cfg.server.dataset = cfg.worker.dataset = DATASET
 
+    data_split = cfg.main.data_split_chosen
+    data_split_config = cfg.main.data_split_config
+    vis_data_split = cfg.main.visualize_data_split
+
     if num_workers > MAX_CLIENTS:
         raise ValueError(
             "Number of clients must be less than or equal to ", MAX_CLIENTS
@@ -258,7 +262,13 @@ def main(cfg: DictConfig) -> None:
     # Load data using the data distributor class
     data_distributor = None
     if data_distributor is None:
-        data_distributor = DATA_DISTRIBUTOR(num_workers, dataset=DATASET)
+        data_distributor = DATA_DISTRIBUTOR(
+            num_workers,
+            data_split_config,
+            data_split,
+            visualize=vis_data_split,
+            dataset=DATASET,
+        )
         trainloaders = data_distributor.get_trainloaders()
         test_data = data_distributor.get_testloader()
 
@@ -342,11 +352,35 @@ def main(cfg: DictConfig) -> None:
 
     plot_workers_losses(workers, wandb_track, showPlot, dataset=DATASET)
 
+    acc_data = [
+        [x, y]
+        for (x, y) in zip(
+            [i for i in range(len(test_results))],
+            [result[1] for result in test_results],
+        )
+    ]
+    f1_data = [
+        [x, y]
+        for (x, y) in zip(
+            [i for i in range(len(test_results))],
+            [result[2] for result in test_results],
+        )
+    ]
+
+    acc_table = wandb.Table(data=acc_data, columns=["epochs", "accuracy"])
+    f1_table = wandb.Table(data=f1_data, columns=["epochs", "f1 score"])
+
     if wandb_track:
         wandb.log(
             {
                 "accuracies": [result[1] for result in test_results],
+                "accuracy_plot": wandb.plot.line(
+                    acc_table, "epochs", "accuracy", title="Accuracy"
+                ),
                 "f1_scores": [result[2] for result in test_results],
+                "f1_plot": wandb.plot.line(
+                    f1_table, "epochs", "f1 score", title="F1 score"
+                ),
                 "avg_loss": avg_loss,
                 "avg_accuracy": avg_accuracy,
                 "avg_f1": avg_f1,

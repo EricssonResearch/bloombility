@@ -6,6 +6,7 @@ from client import FlowerClient
 from server import FlowerServer
 from bloom import ROOT_DIR, models
 
+import sys
 import os
 import glob
 import hydra
@@ -156,8 +157,10 @@ def main(cfg: DictConfig):
 
     testloader = data_distributor.get_testloader()
 
+    # subprocess.run(["chmod", "+x", "server/server.py"], check=True)
     process = subprocess.Popen(
         [
+            sys.executable,
             os.path.join(server_path, "server.py"),
             f"{n_rounds}",
             f"{strategy}",
@@ -177,6 +180,7 @@ def main(cfg: DictConfig):
         testloader_str = f"{ROOT_DIR}/load_data/datasets/test_dataset.pth"
         subprocess.Popen(
             [
+                sys.executable,
                 os.path.join(client_path, "client.py"),
                 f"{batch_size}",
                 f"{num_epochs}",
