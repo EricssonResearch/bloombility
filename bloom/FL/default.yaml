@@ -1,14 +1,14 @@
 main:
   # available: FEMNIST, CIFAR10
-  dataset: "FEMNIST"
+  dataset: "CIFAR10"
 client:
   hyper_params:
       learning_rate: 0.01
-      num_epochs: 1
+      num_epochs: 2
       batch_size: 32
 server:
-  num_rounds: 1
+  num_rounds: 10
   # available: FedAvg, FedAdam, FedAvgM. FedYogi, FedAdagrad
   strategy: 'FedAvg'
   wandb_active: False
-  wandb_key: "f3850dcfd486e4f9d55afd9bbf0ee2df0e088364"
+  wandb_key: "9b0f2332e55f68935986e18e23c302e0afbdf37b"

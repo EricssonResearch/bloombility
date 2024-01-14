@@ -7,9 +7,9 @@ import os
 import wandb
 
 from bloom import ROOT_DIR
+from sklearn.metrics import precision_recall_curve, average_precision_score
 
-
-IS_WANDB_TRACK = True  # <-needs to be exported to yaml
+IS_WANDB_TRACK = False  # <-needs to be exported to yaml
 
 
 # function to get the strategy based on the name
@@ -21,7 +21,7 @@ def define_strategy(
 
         Set up the strategy funciton based on the name and parameters
         to be used for starting the flower server.
-        Available strategies: FedAvg, FedAdam, FedYogi, FedAdagrad, FedAvgM
+        Available strategies: FedAvg, FedAdam, FedYogi, FedAdagrad, FedAvgM, CustomFedAvg
 
     Args:
         strat: name of the strategy algorithm (string)
@@ -52,6 +52,9 @@ def define_strategy(
         strategy = fl.server.strategy.FedAvg(
             evaluate_metrics_aggregation_fn=weighted_average
         )
+    elif strat == "CustomFedAvg":
+        # Custom Federated Averaging strategy
+        strategy = CustomFedAvg(evaluate_metrics_aggregation_fn=weighted_average)
     elif strat == "FedAvgM":
         # Configurable FedAvg with Momentum strategy implementation
         if params is None:
@@ -127,42 +130,91 @@ def weighted_average(metrics: dict) -> dict:
                 "f1": sum(f1_score) / sum(examples),
                 "loss": sum(loss) / sum(examples),
                 "precision": sum(precision) / sum(examples),
-                "recall": sum(recall) /sum(examples)
+                "recall": sum(recall) / sum(examples),
             }
         )
+    elif not IS_WANDB_TRACK:
+        print(
+            f"acc: {sum(acc) / sum(examples)}, f1: {sum(f1_score) / sum(examples)}, loss: {sum(loss) / sum(examples)}, precision: {sum(precision) / sum(examples)}, recall: {sum(recall) /sum(examples)}"
+        )
 
-    plot_precision_recall(precision, recall, examples)
+    # plot_precision_recall(precision, recall, examples)
 
     return {"accuracy": sum(acc) / sum(examples)}
 
 
-def plot_precision_recall(precision, recall, examples):
-    # get average precision and recall over all clients
-    average_precision = sum(precision) / sum(examples)
-    average_recall = sum(recall) / sum(examples)
+# def plot_precision_recall(y_test, y_score, wandb_track: bool = False):
+#     # get average precision and recall over all clients
+#     precision = dict()
+#     recall = dict()
+#     average_precision = dict()
+#     # Number of classes (10 for CIFAR-10, 62 for FEMNIST)
+#     # n_classes = 10 if dataset == "CIFAR10" else 62
+#     n_classes = 62
 
-    # Plot the micro-averaged Precision-Recall curve
-    plt.figure(figsize=(6.4 * 2, 4.8 * 2))
-    plt.plot(
-        average_precision,
-        average_recall,
-        color="gold",
-        lw=2,
-        label="micro-average",
-    )
+#     for i in range(n_classes):
+#         precision[i], recall[i], _ = precision_recall_curve(y_test[:, i], y_score[:, i])
+#         average_precision[i] = average_precision_score(y_test[:, i], y_score[:, i])
 
-    plt.xlim([0.0, 1.0])
-    plt.ylim([0.0, 1.05])
-    plt.xlabel("Recall")
-    plt.ylabel("Precision")
+#     # A "micro-average": quantifying score on all classes jointly
+#     precision["micro"], recall["micro"], _ = precision_recall_curve(
+#         y_test.ravel(), y_score.ravel()
+#     )
+#     average_precision["micro"] = average_precision_score(
+#         y_test, y_score, average="micro"
+#     )
 
-    plt.legend(loc="lower right")
-    # Get current time
-    now = datetime.now()
-    # Format as string (YYYYMMDD_HHMMSS format)
-    timestamp_str = now.strftime("%Y%m%d_%H%M%S")
-    if not os.path.exists(f"{ROOT_DIR}/FL/plots/"):
-        os.makedirs(f"{ROOT_DIR}/FL/plots/")
-    plt.savefig(f"{ROOT_DIR}/FL/plots/precision_recall_curve_{timestamp_str}.png")
-    if IS_WANDB_TRACK:
-        wandb.log({"precision_recall_curve": wandb.Image(plt)})
+#     # Plot the micro-averaged Precision-Recall curve
+#     plt.figure(figsize=(6.4 * 2, 4.8 * 2))
+#     plt.plot(
+#         average_precision,
+#         average_recall,
+#         color="gold",
+#         lw=2,
+#         label="micro-average",
+#     )
+
+#     plt.xlim([0.0, 1.0])
+#     plt.ylim([0.0, 1.05])
+#     plt.xlabel("Recall")
+#     plt.ylabel("Precision")
+
+#     plt.legend(loc="lower right")
+#     # Get current time
+#     now = datetime.now()
+#     # Format as string (YYYYMMDD_HHMMSS format)
+#     timestamp_str = now.strftime("%Y%m%d_%H%M%S")
+#     if not os.path.exists(f"{ROOT_DIR}/FL/plots/"):
+#         os.makedirs(f"{ROOT_DIR}/FL/plots/")
+#     plt.savefig(f"{ROOT_DIR}/FL/plots/precision_recall_curve_{timestamp_str}.png")
+#     if wandb_track:
+#         wandb.log({"precision_recall_curve": wandb.Image(plt)})
+
+
+class CustomFedAvg(fl.server.strategy.FedAvg):
+    def aggregate_evaluate(self, rnd, results, failures):
+        aggregated_result = super().aggregate_evaluate(rnd, results, failures)
+
+        # Collect predictions and true labels from all clients
+        all_predictions = []
+        all_true_labels = []
+        for _, result in results:
+            client_pred = result["client_result"]["predictions"]
+            client_true = result["client_result"]["true_labels"]
+            all_predictions.extend(client_pred)
+            all_true_labels.extend(client_true)
+
+        # Calculate micro-averaged precision-recall curve
+        precision, recall, _ = precision_recall_curve(
+            all_true_labels, all_predictions, average="micro"
+        )
+
+        # Plotting
+        plt.figure()
+        plt.step(recall, precision, where="post")
+        plt.xlabel("Recall")
+        plt.ylabel("Precision")
+        plt.title("Micro-averaged Precision-Recall curve")
+        plt.show()
+
+        return aggregated_result

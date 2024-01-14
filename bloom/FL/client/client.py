@@ -9,7 +9,18 @@ import argparse
 import yaml
 import os
 from bloom import ROOT_DIR
-from sklearn.metrics import f1_score, precision_score, recall_score
+from sklearn.metrics import (
+    f1_score,
+    precision_score,
+    recall_score,
+    precision_recall_curve,
+    average_precision_score,
+)
+from sklearn.preprocessing import label_binarize
+import numpy as np
+import matplotlib.pyplot as plt
+import wandb
+from datetime import datetime
 
 import logging
 
@@ -36,7 +47,7 @@ def main():
     parser.add_argument("--test", required=True, type=str, dest="test_path")
     args = parser.parse_args()
 
-    print(f'Device: {DEVICE}')
+    print(f"Device: {DEVICE}")
 
     cfg_path = os.path.join(CONFIG_PATH, args.config_file)
     with open(cfg_path, "r") as cfg_file:
@@ -76,6 +87,7 @@ def train(
     net.train()  # set to train mode
     criterion = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(net.parameters())
+    print(f"Training started for {epochs} epochs")
     for i in range(epochs):
         for images, labels in trainloader:
             images, labels = images.to(DEVICE), labels.to(DEVICE)
@@ -87,6 +99,8 @@ def train(
         train_loss, train_acc, train_f1, precision, recall = test(
             net, trainloader
         )  # get loss and acc on train set
+        print("Epoch: %d Finished" % (i + 1))
+    print(f"Training completed for {epochs} epochs")
 
     # it can be accessed through the fit function
     # needs an aggregate_fn definition for the strategies
@@ -100,9 +114,7 @@ def train(
     return results
 
 
-def test(
-    net: torch.nn.Module, testloader: torch.utils.data.DataLoader
-):
+def test(net: torch.nn.Module, testloader: torch.utils.data.DataLoader):
     """Validate the network on the entire test set.
 
     Calculates classification accuracy & loss.
@@ -118,7 +130,8 @@ def test(
 
     labels_list = []
     pred_list = []
-
+    all_scores = []
+    all_labels = []
     net.eval()  # set to test mode
     with torch.no_grad():
         for data in testloader:
@@ -133,13 +146,102 @@ def test(
             labels_list.extend(labels.cpu().numpy())
             pred_list.extend(predicted.cpu().numpy())
 
+            scores = torch.nn.functional.softmax(outputs, dim=1).cpu().numpy()
+            all_scores.extend(scores)
+            _labels = label_binarize(labels, classes=list(range(62)))
+            all_labels.extend(_labels)
+
     accuracy = correct / total
 
     f1 = f1_score(labels_list, pred_list, average="micro")
     precision = precision_score(labels_list, pred_list, average="micro")
     recall = recall_score(labels_list, pred_list, average="micro")
 
-    return loss, accuracy, f1, precision, recall
+    # Concatenate all the scores and labels
+    all_scores = np.concatenate(all_scores)
+    all_labels = np.concatenate(all_labels)
+
+    return loss, accuracy, f1, precision, recall, all_scores, all_labels
+
+
+def plot_precision_recall(
+    y_test,
+    y_score,
+    wandb_track: bool = False,
+    showPlot: bool = False,
+):
+    precision = dict()
+    recall = dict()
+    average_precision = dict()
+    # Number of classes (10 for CIFAR-10, 62 for FEMNIST)
+    n_classes = 62
+
+    for i in range(n_classes):
+        precision[i], recall[i], _ = precision_recall_curve(y_test[:, i], y_score[:, i])
+        average_precision[i] = average_precision_score(y_test[:, i], y_score[:, i])
+
+    # A "micro-average": quantifying score on all classes jointly
+    precision["micro"], recall["micro"], _ = precision_recall_curve(
+        y_test.ravel(), y_score.ravel()
+    )
+    average_precision["micro"] = average_precision_score(
+        y_test, y_score, average="micro"
+    )
+
+    # Plot the micro-averaged Precision-Recall curve
+    plt.figure(figsize=(6.4 * 2, 4.8 * 2))
+    plt.plot(
+        recall["micro"],
+        precision["micro"],
+        color="gold",
+        lw=2,
+        label="micro-average (area = {0:0.2f})" "".format(average_precision["micro"]),
+    )
+
+    # # Dedine list of colors for plotting
+    # colors = cycle(
+    #     [
+    #         "aqua",
+    #         "darkorange",
+    #         "cornflowerblue",
+    #         "red",
+    #         "green",
+    #         "blue",
+    #         "yellow",
+    #         "purple",
+    #         "pink",
+    #         "black",
+    #     ]
+    # )
+    # if dataset == "CIFAR10":
+    #     for i, color in zip(range(n_classes), colors):
+    #         plt.plot(
+    #             recall[i],
+    #             precision[i],
+    #             color=color,
+    #             lw=2,
+    #             label="Class {0} (area = {1:0.2f})" "".format(i, average_precision[i]),
+    #         )
+
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel("Recall")
+    plt.ylabel("Precision")
+    plt.title("Micro-averaged Precision-Recall curve - FEMNIST")
+    plt.legend(loc="lower right")
+    # Get current time
+    now = datetime.now()
+    # Format as string (YYYYMMDD_HHMMSS format)
+    timestamp_str = now.strftime("%Y%m%d_%H%M%S")
+    if not os.path.exists(f"{ROOT_DIR}/split/plots/"):
+        os.makedirs(f"{ROOT_DIR}/split/plots/")
+    plt.savefig(
+        f"{ROOT_DIR}/FL/plots/precision_recall_curve_FEMNIST_{timestamp_str}.png"
+    )
+    if wandb_track:
+        wandb.log({"precision_recall_curve": plt})
+    if showPlot:
+        plt.show()
 
 
 class FlowerClient(fl.client.NumPyClient):
@@ -157,6 +259,7 @@ class FlowerClient(fl.client.NumPyClient):
         num_trainset = len(self.trainloader) * self.batch_size
         num_testset = len(self.testloader) * self.batch_size
         self.num_examples = {"testset": num_trainset, "trainset": num_testset}
+        self.true_test_labels = self.testloader.dataset.targets
 
     def get_parameters(self, config=None):
         return [val.cpu().numpy() for _, val in self.net.state_dict().items()]
@@ -175,7 +278,12 @@ class FlowerClient(fl.client.NumPyClient):
 
     def evaluate(self, parameters, config):
         self.set_parameters(parameters)
-        loss, accuracy, f1, precision, recall = test(self.net, self.testloader)
+        loss, accuracy, f1, precision, recall, scores, labels = test(
+            self.net, self.testloader
+        )
+
+        plot_precision_recall(labels, scores, self.true_test_labels)
+
         return (
             float(loss),
             self.num_examples["testset"],
@@ -185,6 +293,8 @@ class FlowerClient(fl.client.NumPyClient):
                 "precision": precision,
                 "recall": recall,
                 "loss": loss,
+                "predictions": scores,
+                "true_labels": labels,
             },
         )
 

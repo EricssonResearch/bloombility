@@ -4,12 +4,15 @@
 #SBATCH -t 0-00:30:00
 
 repo_name="your-repo-name"
-ROOT_DIR="../"
+# set root directory to the parent directory of the current script
+ROOT_DIR="/mnt/d/BloomNet/project_cs_team_b/bloom/"
+# ROOT_DIR=""
 
 DATASET_DIR="${ROOT_DIR}/load_data/datasets"
 main_script="${ROOT_DIR}/FL/main.py"
 server_script="${ROOT_DIR}/FL/server/server.py"
 client_script="${ROOT_DIR}/FL/client/client.py"
+config_file="${ROOT_DIR}/config/federated/default.yaml"
 
 # Check if the correct number of arguments is provided
 if [ "$#" -eq 0 ]; then
@@ -19,7 +22,7 @@ fi
 
 # Extract command-line arguments
 num_clients=$1
-config_file=${2:-default.yaml}
+# config_file=${2:-default.yaml}
 
 # Check if the config file exists
 if [ ! -f "${config_file}" ]; then
