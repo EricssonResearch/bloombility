@@ -1,9 +1,9 @@
 num_clients: 4
-data_split_available: ["iid", "num_classes", "num_samples"]
+data_split_available: ["iid", "num_classes", "num_samples", "updated_non_iid"]
 data_split_config:
-  dirichlet_alpha: 0.3
+  dirichlet_alpha: 0.1
   niid_factor: 2
-advanced_visualization: True
-data_split_chosen: "num_samples"
+advanced_visualization: False
+data_split_chosen: "updated_non_iid"
 wandb_active: False
-wandb_key: "2858fc7a094d399980a53804e6e2208721f44609"
+wandb_key: "key"

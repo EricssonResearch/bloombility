@@ -6,6 +6,7 @@ from client import FlowerClient
 from server import FlowerServer
 from bloom import ROOT_DIR, models
 
+import sys
 import os
 import glob
 import hydra
@@ -123,7 +124,9 @@ def main(cfg: DictConfig):
 
     advanced_visualization = cfg.main.advanced_visualization
 
-    data_distributor = DATA_DISTRIBUTOR(num_clients, data_split_config, data_split)
+    data_distributor = DATA_DISTRIBUTOR(
+        num_clients, data_split_config, data_split, advanced_visualization
+    )
     # wandb experiments
     wandb_track = cfg.main.wandb_active
     wandb_key = cfg.main.wandb_key
@@ -154,8 +157,10 @@ def main(cfg: DictConfig):
 
     testloader = data_distributor.get_testloader()
 
+    # subprocess.run(["chmod", "+x", "server/server.py"], check=True)
     process = subprocess.Popen(
         [
+            sys.executable,
             os.path.join(server_path, "server.py"),
             f"{n_rounds}",
             f"{strategy}",
@@ -175,6 +180,7 @@ def main(cfg: DictConfig):
         testloader_str = f"{ROOT_DIR}/load_data/datasets/test_dataset.pth"
         subprocess.Popen(
             [
+                sys.executable,
                 os.path.join(client_path, "client.py"),
                 f"{batch_size}",
                 f"{num_epochs}",
