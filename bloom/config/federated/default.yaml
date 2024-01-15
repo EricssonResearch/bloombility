@@ -1,6 +1,6 @@
 main:
   # available: FEMNIST, CIFAR10
-  dataset: "FEMNIST"
+  dataset: "CIFAR10"
 client:
   hyper_params:
       learning_rate: 0.0005

@@ -38,7 +38,7 @@ wait $pid1
 
 echo "Running server.py"
 python "${server_script}" -n "${num_clients}" -c "${config_file}" &
-sleep 20
+sleep  ${num_clients}*2
 
 # Run client.py in a loop with num_clients
 for i in `seq 1 ${num_clients}`; do

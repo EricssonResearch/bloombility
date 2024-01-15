@@ -27,6 +27,13 @@ import logging
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 CONFIG_PATH = os.path.join(ROOT_DIR, "config", "federated")
 CLIENT_REPORTING = False
+DATASET_NAME = "FEMNIST"
+
+# map dataset name to model
+DATASET_MODEL_MAP = {
+    "FEMNIST": models.CNNFemnist,
+    "CIFAR10": models.FedAvgCNN,
+}
 
 
 def main():
@@ -55,6 +62,8 @@ def main():
 
     batch_size = cfg["client"]["hyper_params"]["batch_size"]
     num_epochs = cfg["client"]["hyper_params"]["num_epochs"]
+    DATASET_NAME = cfg["main"]["dataset"]
+    print(f"Dataset: {DATASET_NAME}")
 
     # Configure logging in each subprocess
     logging.basicConfig(filename="clients.log", level=logging.INFO)
@@ -157,7 +166,9 @@ def test(net: torch.nn.Module, testloader: torch.utils.data.DataLoader):
     recall = recall_score(y_true, pred_list, average="micro")
 
     # Binaries the labels
-    y_true_bin = label_binarize(y_true, classes=[i for i in range(62)])
+    y_true_bin = label_binarize(
+        y_true, classes=[i for i in range(62 if DATASET_NAME == "FEMNIST" else 10)]
+    )
 
     loss /= len(y_true)
     # Plot precision recall curve
@@ -177,7 +188,7 @@ def plot_precision_recall(
     # recall = dict()
     # average_precision = dict()
     # Number of classes (10 for CIFAR-10, 62 for FEMNIST)
-    # n_classes = 62
+    n_classes = 62 if DATASET_NAME == "FEMNIST" else 10
 
     # Compute micro-average precision-recall curve and area
     precision, recall, _ = precision_recall_curve(y_test_bin.ravel(), y_score.ravel())
@@ -202,7 +213,9 @@ def plot_precision_recall(
     plt.ylim([0.0, 1.05])
     plt.xlabel("Recall")
     plt.ylabel("Precision")
-    plt.title("Micro-average Precision-Recall curve")
+    plt.title(
+        f"Micro-average Precision-Recall curve - {n_classes} classes - {DATASET_NAME}"
+    )
     plt.legend(loc="lower right")
     # Get current time
     now = datetime.now()
@@ -211,7 +224,7 @@ def plot_precision_recall(
     if not os.path.exists(f"{ROOT_DIR}/FL/plots/"):
         os.makedirs(f"{ROOT_DIR}/FL/plots/")
     plt.savefig(
-        f"{ROOT_DIR}/FL/plots/precision_recall_curve_FEMNIST_{timestamp_str}.png"
+        f"{ROOT_DIR}/FL/plots/precision_recall_curve_{DATASET_NAME}_{timestamp_str}.png"
     )
     if wandb_track:
         wandb.log({"precision_recall_curve": plt})
@@ -222,7 +235,8 @@ def plot_precision_recall(
 class FlowerClient(fl.client.NumPyClient):
     def __init__(self, batch_size, num_epochs):
         # super().__init__()
-        self.net = models.CNNFemnist().to(DEVICE)
+        ModelClass = DATASET_MODEL_MAP[DATASET_NAME]
+        self.net = ModelClass().to(DEVICE)
         self.batch_size = batch_size
         self.num_epochs = num_epochs
 

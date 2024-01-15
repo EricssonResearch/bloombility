@@ -11,6 +11,13 @@ import os
 import yaml
 
 CONFIG_PATH = os.path.join(ROOT_DIR, "config", "federated")
+DATASET_NAME = "FEMNIST"
+
+# map dataset name to model
+DATASET_MODEL_MAP = {
+    "FEMNIST": models.CNNFemnist,
+    "CIFAR10": models.FedAvgCNN,
+}
 
 
 def main():
@@ -41,6 +48,9 @@ def main():
     # Example log statement with explicit flushing
     logging.debug("Debug message")
     logging.getLogger().handlers[0].flush()
+
+    DATASET_NAME = cfg["main"]["dataset"]
+    print(f"Dataset: {DATASET_NAME}")
 
     # Number of rounds of federated learning
     n_rounds = cfg["server"]["num_rounds"]
@@ -79,7 +89,8 @@ def main():
 class FlowerServer:
     def __init__(self, strategy: str, num_rounds: int, wandb_track: bool) -> None:
         # Create an instance of the model and get the parameters
-        self.params = get_parameters(models.CNNFemnist())
+        ModelClass = DATASET_MODEL_MAP[DATASET_NAME]
+        self.params = get_parameters(ModelClass())
         # Pass parameters to the Strategy for server-side parameter initialization
         self.strategy = define_strategy(strategy, wandb_track, self.params)
         self.num_rounds = num_rounds
