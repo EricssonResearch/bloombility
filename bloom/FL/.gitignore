@@ -7,3 +7,5 @@ datasets/
 outputs/
 wandb/
 saved_fl_models/
+plots/
+FEMNIST/
