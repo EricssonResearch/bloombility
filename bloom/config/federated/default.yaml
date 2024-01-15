@@ -3,12 +3,12 @@ main:
   dataset: "FEMNIST"
 client:
   hyper_params:
-      learning_rate: 0.01
+      learning_rate: 0.0005
       num_epochs: 1
-      batch_size: 32
+      batch_size: 64
 server:
-  num_rounds: 1
-  # available: FedAvg, FedAdam, FedAvgM. FedYogi, FedAdagrad
-  strategy: 'FedAvg'
+  num_rounds: 5
+  # available: FedAvg, FedAdam, FedAvgM. FedYogi, FedAdagrad, CustomFedAvg
+  strategy: 'FedAdam'
   wandb_active: False
-  wandb_key: "f3850dcfd486e4f9d55afd9bbf0ee2df0e088364"
+  wandb_key: ""
