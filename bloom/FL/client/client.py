@@ -21,6 +21,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import wandb
 from datetime import datetime
+from itertools import cycle
 
 import logging
 
@@ -182,11 +183,18 @@ def plot_precision_recall(
     wandb_track: bool = False,
     showPlot: bool = False,
 ):
-    # precision = dict()
-    # recall = dict()
-    # average_precision = dict()
+    precisions = dict()
+    recalls = dict()
+    average_precisions = dict()
     # Number of classes (10 for CIFAR-10, 62 for FEMNIST)
     n_classes = 10
+
+    # Per-class precision-recall curve (For CIFAR-10)
+    for i in range(n_classes):
+        precisions[i], recalls[i], _ = precision_recall_curve(
+            y_test_bin[:, i], y_score[:, i]
+        )
+        average_precisions[i] = average_precision_score(y_test_bin[:, i], y_score[:, i])
 
     # Compute micro-average precision-recall curve and area
     precision, recall, _ = precision_recall_curve(y_test_bin.ravel(), y_score.ravel())
@@ -198,8 +206,34 @@ def plot_precision_recall(
         )
     )
 
+    # Dedine list of colors for plotting
+    colors = cycle(
+        [
+            "aqua",
+            "darkorange",
+            "cornflowerblue",
+            "red",
+            "green",
+            "blue",
+            "yellow",
+            "purple",
+            "pink",
+            "black",
+        ]
+    )
+
+    plt.figure(figsize=(6.4 * 2, 4.8 * 2))
+    # if dataset == "CIFAR10":
+    for i, color in zip(range(n_classes), colors):
+        plt.plot(
+            recalls[i],
+            precisions[i],
+            color=color,
+            lw=2,
+            label="Class {0} (area = {1:0.2f})" "".format(i, average_precisions[i]),
+        )
+
     # Plot the micro-averaged Precision-Recall curve
-    plt.figure()
     plt.plot(
         recall,
         precision,
@@ -211,9 +245,7 @@ def plot_precision_recall(
     plt.ylim([0.0, 1.05])
     plt.xlabel("Recall")
     plt.ylabel("Precision")
-    plt.title(
-        f"Micro-average Precision-Recall curve - {n_classes} classes - {DATASET_NAME}"
-    )
+    plt.title(f"Micro-average Precision-Recall curve - {n_classes} classes - CIFAR-10")
     plt.legend(loc="lower right")
     # Get current time
     now = datetime.now()
