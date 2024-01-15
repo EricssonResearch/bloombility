@@ -12,7 +12,9 @@ IS_WANDB_TRACK = False  # <-needs to be exported to yaml
 
 
 # function to get the strategy based on the name
-def define_strategy(strat: str, params: List[np.ndarray] = None) -> fl.server.strategy:
+def define_strategy(
+    strat: str, wandb_track: bool, params: List[np.ndarray] = None
+) -> fl.server.strategy:
     """
         Returns the strategy function based on the name
 
@@ -27,6 +29,7 @@ def define_strategy(strat: str, params: List[np.ndarray] = None) -> fl.server.st
     Returns:
         strategy: the strategy function
     """
+
     if strat == "FedAdam":
         if params is None:
             raise ValueError("Initial model parameters missing for FedAdam")
