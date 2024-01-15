@@ -58,7 +58,9 @@ class WorkerActor:
             Object: The WorkerActor object.
 
         """
-        ModelClass = MODELS[config.dataset]
+        self.dataset = config.dataset
+
+        ModelClass = MODELS[self.dataset]
         self.model = ModelClass()
         self.train_data = train_data
         self.test_data = test_data
@@ -96,15 +98,22 @@ class WorkerActor:
             None
 
         """
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model.to(device)
+        self.model.train()
         for epoch in range(epochs):
             loss = 0.0
             for inputs, labels in self.train_data:
-                inputs = inputs
+                inputs = inputs.to(device)
                 self.optimizer.zero_grad()
                 client_output = self.model(inputs)
+                client_output = client_output.to("cpu")
                 grad_from_server, loss = ray.get(
                     server_actor.process_and_update.remote(client_output, labels)
                 )
+                client_output = client_output.to(device)
+                grad_from_server = grad_from_server.to(device)
+
                 client_output.backward(grad_from_server)
                 self.optimizer.step()
             self.losses.append(loss)
@@ -123,6 +132,9 @@ class WorkerActor:
             accuracy (float): The accuracy.
 
         """
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model.to(device)
+        self.model.eval()
         total = 0
         correct = 0
         total_loss = 0.0
@@ -133,8 +145,9 @@ class WorkerActor:
         all_scores = []
 
         for inputs, labels in self.test_data:
-            inputs = inputs
+            inputs = inputs.to(device)
             client_output = self.model(inputs)
+            client_output = client_output.to("cpu")
             loss, correct_pred, total_pred, predicted, output = ray.get(
                 server_actor.validate.remote(client_output, labels)
             )
@@ -143,7 +156,10 @@ class WorkerActor:
             all_scores.append(scores)
 
             # Convert the target labels to a binary format
-            _labels = label_binarize(labels.cpu().numpy(), classes=np.arange(10))
+            _labels = label_binarize(
+                labels.cpu().numpy(),
+                classes=np.arange(10 if self.dataset == "CIFAR10" else 62),
+            )
             all_labels.append(_labels)
 
             total += total_pred

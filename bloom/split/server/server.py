@@ -45,7 +45,9 @@ class ServerActor:
             Object: The ServerActor object.
 
         """
-        ModelClass = MODELS[config.dataset]
+        self.dataset = config.dataset
+
+        ModelClass = MODELS[self.dataset]
         self.model = ModelClass()
         self.criterion = nn.CrossEntropyLoss()
         # Create the optimizer using the configuration parameters
@@ -68,13 +70,17 @@ class ServerActor:
         Returns:
             Tuple[torch.Tensor, float]: The gradient of the client output and the loss value.
         """
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model.train()
+        self.model.to(device)
         self.optimizer.zero_grad()
-        labels = labels
+        labels = labels.to(device)
+        client_output = client_output.to(device)
         output = self.model(client_output)
         loss = self.criterion(output, labels)
         loss.backward(retain_graph=True)
         self.optimizer.step()
-        return client_output.grad, loss.item()
+        return client_output.grad, loss.detach().item()
 
     def validate(self, client_output: torch.Tensor, labels: torch.Tensor):
         """
@@ -87,11 +93,15 @@ class ServerActor:
         Returns:
             Tuple[float, int, int]: The loss value, the number of correct predictions, and the total number of predictions.
         """
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model.eval()
+        self.model.to(device)
         with torch.no_grad():
-            labels = labels
+            labels = labels.to(device)
+            client_output = client_output.to(device)
             output = self.model(client_output)
             loss = self.criterion(output, labels)
-            _, predicted = torch.max(output.data, 1)
+            _, predicted = torch.max(output.to("cpu").data, 1)
             total = labels.size(0)
             correct = (predicted == labels).sum().item()
         return loss.item(), correct, total, predicted, output
