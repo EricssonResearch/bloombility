@@ -9,6 +9,6 @@ client:
 server:
   num_rounds: 5
   # available: FedAvg, FedAdam, FedAvgM. FedYogi, FedAdagrad, CustomFedAvg
-  strategy: 'FedAdam'
+  strategy: 'FedAvg'
   wandb_active: False
   wandb_key: ""

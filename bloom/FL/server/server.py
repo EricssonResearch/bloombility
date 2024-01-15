@@ -89,8 +89,8 @@ def main():
 class FlowerServer:
     def __init__(self, strategy: str, num_rounds: int, wandb_track: bool) -> None:
         # Create an instance of the model and get the parameters
-        ModelClass = DATASET_MODEL_MAP[DATASET_NAME]
-        self.params = get_parameters(ModelClass())
+        # ModelClass = DATASET_MODEL_MAP[DATASET_NAME]
+        self.params = get_parameters(models.FedAvgCNN())
         # Pass parameters to the Strategy for server-side parameter initialization
         self.strategy = define_strategy(strategy, wandb_track, self.params)
         self.num_rounds = num_rounds

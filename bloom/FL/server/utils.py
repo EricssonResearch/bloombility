@@ -9,7 +9,7 @@ import wandb
 from bloom import ROOT_DIR
 from sklearn.metrics import precision_recall_curve, average_precision_score
 
-IS_WANDB_TRACK = True  # <-needs to be exported to yaml
+IS_WANDB_TRACK = False  # <-needs to be exported to yaml
 
 
 # function to get the strategy based on the name

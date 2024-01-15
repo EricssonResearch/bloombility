@@ -166,9 +166,7 @@ def test(net: torch.nn.Module, testloader: torch.utils.data.DataLoader):
     recall = recall_score(y_true, pred_list, average="micro")
 
     # Binaries the labels
-    y_true_bin = label_binarize(
-        y_true, classes=[i for i in range(62 if DATASET_NAME == "FEMNIST" else 10)]
-    )
+    y_true_bin = label_binarize(y_true, classes=[i for i in range(10)])
 
     loss /= len(y_true)
     # Plot precision recall curve
@@ -188,7 +186,7 @@ def plot_precision_recall(
     # recall = dict()
     # average_precision = dict()
     # Number of classes (10 for CIFAR-10, 62 for FEMNIST)
-    n_classes = 62 if DATASET_NAME == "FEMNIST" else 10
+    n_classes = 10
 
     # Compute micro-average precision-recall curve and area
     precision, recall, _ = precision_recall_curve(y_test_bin.ravel(), y_score.ravel())
@@ -224,7 +222,7 @@ def plot_precision_recall(
     if not os.path.exists(f"{ROOT_DIR}/FL/plots/"):
         os.makedirs(f"{ROOT_DIR}/FL/plots/")
     plt.savefig(
-        f"{ROOT_DIR}/FL/plots/precision_recall_curve_{DATASET_NAME}_{timestamp_str}.png"
+        f"{ROOT_DIR}/FL/plots/precision_recall_curve_CIFAR10_{timestamp_str}.png"
     )
     if wandb_track:
         wandb.log({"precision_recall_curve": plt})
@@ -235,8 +233,8 @@ def plot_precision_recall(
 class FlowerClient(fl.client.NumPyClient):
     def __init__(self, batch_size, num_epochs):
         # super().__init__()
-        ModelClass = DATASET_MODEL_MAP[DATASET_NAME]
-        self.net = ModelClass().to(DEVICE)
+        # ModelClass = DATASET_MODEL_MAP[DATASET_NAME]
+        self.net = models.FedAvgCNN().to(DEVICE)
         self.batch_size = batch_size
         self.num_epochs = num_epochs
 
