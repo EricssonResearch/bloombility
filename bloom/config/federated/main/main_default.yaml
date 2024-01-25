@@ -4,6 +4,6 @@ data_split_config:
   dirichlet_alpha: 0.1
   niid_factor: 2
 advanced_visualization: False
-data_split_chosen: "updated_non_iid"
+data_split_chosen: "iid"
 wandb_active: False
 wandb_key: "key"
